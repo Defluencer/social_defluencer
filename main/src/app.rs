@@ -1,6 +1,8 @@
 use yew::prelude::*;
 
-use home::HelloWorld;
+use home::HomePage;
+
+// TODO Router
 
 pub struct App;
 
@@ -16,8 +18,8 @@ impl Component for App {
 
     fn view(&self, ctx: &Context<Self>) -> Html {
         html! {
-            <HelloWorld>
-            </HelloWorld>
+            <HomePage>
+            </HomePage>
         }
     }
 

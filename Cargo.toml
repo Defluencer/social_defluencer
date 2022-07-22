@@ -2,5 +2,10 @@
 
 members = [
     "main",
-    "home"
+    "home",
+    "settings",
+    "feed",
+    "content",
+    "channel",
+    "live"
 ]
