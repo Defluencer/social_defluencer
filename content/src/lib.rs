@@ -1,11 +1,3 @@
-use yew::{function_component, html};
-
-/// A Content Page.
-#[function_component(ContentPage)]
-pub fn content() -> Html {
-    html! { "Hello world" }
-}
-
 // social.defluencer.eth/#/content/<CID_HERE>
 // Load the content CID
 // Display the content according to type.
@@ -14,3 +6,29 @@ pub fn content() -> Html {
 
 // Exporting content as CARs?
 // Explore DAG?
+
+use yew::prelude::*;
+
+use cid::Cid;
+
+#[derive(Properties, PartialEq)]
+pub struct Props {
+    pub cid: Cid,
+}
+
+pub struct ContentPage;
+
+pub enum Msg {}
+
+impl Component for ContentPage {
+    type Message = Msg;
+    type Properties = Props;
+
+    fn create(_ctx: &Context<Self>) -> Self {
+        Self
+    }
+
+    fn view(&self, _ctx: &Context<Self>) -> Html {
+        html! { "Content Page" }
+    }
+}
