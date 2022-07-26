@@ -3,7 +3,7 @@ use yew::{function_component, html};
 /// The Personal Feed Page.
 #[function_component(FeedPage)]
 pub fn feed() -> Html {
-    html! { "Hello world" }
+    html! { "Feed Page" }
 }
 
 // social.defluencer.eth/#/feed/

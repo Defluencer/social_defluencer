@@ -3,7 +3,7 @@ use yew::{function_component, html};
 /// The App Landing Page.
 #[function_component(HomePage)]
 pub fn home() -> Html {
-    html! { "Hello world" }
+    html! { "Home Page" }
 }
 
 // social.defluencer.eth/#/home/
