@@ -10,33 +10,30 @@ use settings::SettingPage;
 
 use cid::Cid;
 
-//use wasm_bindgen_futures::spawn_local;
-
 use utils::{ipfs::IPFSContext, web3::Web3Context};
 
 use gloo_console::info;
 
-//TODO fix hash router not working
-
 #[derive(Routable, Clone, PartialEq)]
 enum Route {
-    #[at("/#/home")]
-    Home, // social.defluencer.eth/#/home/
-
-    #[at("/#/channel/:cid")]
+    #[at("/channel/:cid")]
     Channel { cid: Cid }, // social.defluencer.eth/#/channel/<IPNS_HERE>
 
-    #[at("/#/content/:cid")]
+    #[at("/content/:cid")]
     Content { cid: Cid }, // social.defluencer.eth/#/content/<CID_HERE>
 
-    #[at("/#/feed")]
+    #[at("/feed")]
     Feed, // social.defluencer.eth/#/feed/
 
-    #[at("/#/live/:cid")]
+    #[at("/live/:cid")]
     Live { cid: Cid }, // social.defluencer.eth/#/live/<CID_HERE>
 
-    #[at("/#/settings")]
+    #[at("/settings")]
     Settings,
+
+    #[not_found]
+    #[at("/home")]
+    Home, // social.defluencer.eth/#/home/
 }
 
 pub enum Msg {
@@ -81,18 +78,18 @@ impl Component for App {
         let web3_cb = self.web3_cb.clone();
 
         let app = html! {
-        <BrowserRouter>
-            <Switch<Route> render={Switch::render(move |route| {
-                match route {
-                    Route::Channel { cid } => html!{ <ChannelPage cid={*cid} /> },
-                    Route::Content { cid } => html!{ <ContentPage cid={*cid} /> },
-                    Route::Feed => html!{ <FeedPage /> },
-                    Route::Home => html!{ <HomePage /> },
-                    Route::Live { cid } => html!{ <LivePage cid={*cid} />},
-                    Route::Settings => html!{ <SettingPage ipfs_cb={ipfs_cb.clone()} web3_cb={web3_cb.clone()} /> },
-                }})}
-             />
-        </BrowserRouter>
+            <HashRouter>
+                <Switch<Route> render={move |route| {
+                    match route {
+                        Route::Channel { cid } => html!{ <ChannelPage {cid} /> },
+                        Route::Content { cid } => html!{ <ContentPage {cid} /> },
+                        Route::Feed => html!{ <FeedPage /> },
+                        Route::Home => html!{ <HomePage /> },
+                        Route::Live { cid } => html!{ <LivePage {cid} />},
+                        Route::Settings => html!{ <SettingPage ipfs_cb={ipfs_cb.clone()} web3_cb={web3_cb.clone()} /> },
+                    }}}
+                />
+            </HashRouter>
         };
 
         let app = if let Some(context) = self.ipfs_context.as_ref() {

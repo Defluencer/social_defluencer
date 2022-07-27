@@ -1,4 +1,4 @@
-use yew::{function_component, html};
+use yew::{function_component, html, Html};
 
 /// The Personal Feed Page.
 #[function_component(FeedPage)]

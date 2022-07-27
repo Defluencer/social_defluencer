@@ -2,8 +2,6 @@ use yew::{context::ContextHandle, prelude::*};
 
 use utils::{ipfs::IPFSContext, web3::Web3Context};
 
-use linked_data::types::PeerId;
-
 use web_sys::{EventTarget, HtmlInputElement};
 
 use wasm_bindgen::JsCast;
@@ -12,9 +10,10 @@ use wasm_bindgen_futures::spawn_local;
 use gloo_console::{error, info};
 use gloo_storage::{LocalStorage, Storage};
 
-use ipfs_api::DEFAULT_URI;
+use cid::Cid;
 
 const IPFS_API_ADDRS_KEY: &str = "ipfs_api_addrs";
+const DEFAULT_URI: &str = "http://127.0.0.1:5001/api/v0/";
 
 #[derive(Properties, PartialEq)]
 pub struct Props {
@@ -23,7 +22,7 @@ pub struct Props {
 }
 
 pub struct SettingPage {
-    peer_id: Option<PeerId>,
+    peer_id: Option<Cid>,
     _context_handle: Option<ContextHandle<IPFSContext>>,
 
     address: String,
@@ -37,7 +36,7 @@ pub struct SettingPage {
 }
 
 pub enum Msg {
-    PeerId(PeerId),
+    PeerId(Cid),
     Addrs(String),
     OsType(OsType),
 }
@@ -56,11 +55,11 @@ impl Component for SettingPage {
 
         let peer_id_cb = ctx
             .link()
-            .callback(|context: IPFSContext| Msg::PeerId(context.peer_id));
+            .callback(|context: IPFSContext| Msg::PeerId(context.peer_id.into()));
 
         let (peer_id, _context_handle) = match ctx.link().context::<IPFSContext>(peer_id_cb.clone())
         {
-            Some((context, handle)) => (Some(context.peer_id), Some(handle)),
+            Some((context, handle)) => (Some(context.peer_id.into()), Some(handle)),
             None => (None, None),
         };
 
@@ -196,7 +195,7 @@ impl Component for SettingPage {
 }
 
 impl SettingPage {
-    fn render_connected(&self, peer_id: PeerId) -> Html {
+    fn render_connected(&self, peer_id: Cid) -> Html {
         html! {
             <div class="field">
                 <label class="label"> { "IPFS Peer ID" } </label>

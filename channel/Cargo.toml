@@ -4,5 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+ybc = { git = "https://github.com/Sionois/ybc", branch = "deps_fix" }
+yew = { git = "https://github.com/SionoiS/yew", branch = "remove-tokio", features = ["csr"] }
+
 cid = { version = "0.8", default-features = false, features = ["std"] }
-yew = { version = "0.19", default-features = false, features = [] }
