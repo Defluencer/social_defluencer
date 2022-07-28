@@ -10,7 +10,12 @@ use settings::SettingPage;
 
 use cid::Cid;
 
-use utils::{ipfs::IPFSContext, web3::Web3Context};
+use utils::{
+    ipfs::{get_ipfs_addr, IPFSContext},
+    web3::Web3Context,
+};
+
+use wasm_bindgen_futures::spawn_local;
 
 use gloo_console::info;
 
@@ -58,15 +63,38 @@ impl Component for App {
         info!("App Create");
 
         let ipfs_cb = ctx.link().callback(Msg::IPFS);
+
+        if let Ok(url) = get_ipfs_addr() {
+            spawn_local({
+                let cb = ipfs_cb.clone();
+
+                async move {
+                    if let Some(context) = IPFSContext::new(Some(url)).await {
+                        cb.emit(context);
+                    }
+                }
+            });
+        }
+
         let web3_cb = ctx.link().callback(Msg::Web3);
 
-        // init web3 and ipfs here?
+        //init web3 the same way?
 
         Self {
             ipfs_cb,
             ipfs_context: None,
             web3_cb,
             web3_context: None,
+        }
+    }
+
+    fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool {
+        #[cfg(debug_assertions)]
+        info!("App Update");
+
+        match msg {
+            Msg::IPFS(context) => self.on_ipfs(context),
+            Msg::Web3(context) => self.on_web3(context),
         }
     }
 
@@ -113,16 +141,6 @@ impl Component for App {
         };
 
         app
-    }
-
-    fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool {
-        #[cfg(debug_assertions)]
-        info!("App Update");
-
-        match msg {
-            Msg::IPFS(context) => self.on_ipfs(context),
-            Msg::Web3(context) => self.on_web3(context),
-        }
     }
 }
 

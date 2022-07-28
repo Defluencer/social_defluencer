@@ -983,6 +983,7 @@ dependencies = [
  "live",
  "settings",
  "utils",
+ "wasm-bindgen-futures",
  "ybc",
  "yew",
  "yew-router",
@@ -1802,8 +1803,10 @@ version = "0.1.0"
 dependencies = [
  "cid",
  "gloo-console",
+ "gloo-storage",
  "ipfs-api",
  "linked-data",
+ "serde",
  "web3",
 ]
 

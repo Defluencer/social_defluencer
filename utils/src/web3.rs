@@ -9,6 +9,10 @@ use linked_data::types::Address;
 
 use gloo_console::error;
 
+use gloo_storage::{LocalStorage, Storage};
+
+use serde::Serialize;
+
 #[derive(Clone)]
 pub struct Web3Context {
     pub client: Web3<Eip1193>,
@@ -48,5 +52,22 @@ impl Web3Context {
         };
 
         Some(Self { client, ens, addr })
+    }
+}
+
+const WALLET_ADDRS_KEY: &str = "wallet_addrs";
+
+/// Return wallet address from local storage if possible.
+pub fn get_wallet_addr() -> Option<String> {
+    LocalStorage::get(WALLET_ADDRS_KEY).ok()
+}
+
+/// Save wallet address to local storage.
+pub fn set_wallet_addr<T>(msg: T)
+where
+    T: Serialize,
+{
+    if let Err(e) = LocalStorage::set(WALLET_ADDRS_KEY, &msg) {
+        error!(&format!("{:?}", e));
     }
 }

@@ -20,4 +20,5 @@ yew-router = { git = "https://github.com/SionoiS/yew", branch = "remove-tokio", 
 
 cid = { version = "0.8", default-features = false, features = ["std"] }
 gloo-console = { version = "0.2", default-features = false, features = [] }
+wasm-bindgen-futures = { version = "0.4", default-features = false, features = [] }
 

@@ -4,6 +4,10 @@ use linked_data::types::PeerId;
 
 use gloo_console::error;
 
+use gloo_storage::{LocalStorage, Storage};
+
+use serde::Serialize;
+
 #[derive(Clone)]
 pub struct IPFSContext {
     pub client: IpfsService,
@@ -42,5 +46,25 @@ impl IPFSContext {
         };
 
         Some(Self { client, peer_id })
+    }
+}
+
+const IPFS_API_ADDRS_KEY: &str = "ipfs_api_addrs";
+
+/// Return IPFS api url from storage or default.
+pub fn get_ipfs_addr() -> Result<String, String> {
+    match LocalStorage::get(IPFS_API_ADDRS_KEY) {
+        Ok(url) => Ok(url),
+        Err(_) => Err(DEFAULT_URI.to_owned()),
+    }
+}
+
+/// Save IPFS api url to local storage.
+pub fn set_ipfs_addr<T>(msg: T)
+where
+    T: Serialize,
+{
+    if let Err(e) = LocalStorage::set(IPFS_API_ADDRS_KEY, &msg) {
+        error!(&format!("{:?}", e));
     }
 }
