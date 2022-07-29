@@ -1500,6 +1500,7 @@ dependencies = [
  "cid",
  "gloo-console",
  "gloo-storage",
+ "hex",
  "linked-data",
  "utils",
  "wasm-bindgen",

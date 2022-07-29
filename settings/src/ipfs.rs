@@ -1,3 +1,5 @@
+use ybc::{Block, Container, Section, Subtitle, Tabs};
+
 use yew::{context::ContextHandle, prelude::*};
 
 use utils::ipfs::{get_ipfs_addr, set_ipfs_addr, IPFSContext};
@@ -31,7 +33,7 @@ pub struct IPFSSettings {
 }
 
 pub enum Msg {
-    PeerId(Cid),
+    //PeerId(Cid),
     Addrs(String),
     OsType(OsType),
 }
@@ -44,11 +46,13 @@ impl Component for IPFSSettings {
         #[cfg(debug_assertions)]
         info!("IPFS Setting Create");
 
-        let peer_id_cb = ctx
-            .link()
-            .callback(|context: IPFSContext| Msg::PeerId(context.peer_id.into()));
+        /* let peer_id_cb = ctx
+        .link()
+        .callback(|context: IPFSContext| Msg::PeerId(context.peer_id.into())); */
 
-        let (peer_id, _context_handle) = match ctx.link().context::<IPFSContext>(peer_id_cb.clone())
+        let (peer_id, _context_handle) = match ctx
+            .link()
+            .context::<IPFSContext>(Callback::noop() /* peer_id_cb.clone() */)
         {
             Some((context, handle)) => (Some(context.peer_id.into()), Some(handle)),
             None => (None, None),
@@ -105,21 +109,22 @@ impl Component for IPFSSettings {
         info!("IPFS Setting Update");
 
         match msg {
-            Msg::PeerId(peer) => {
+            /* Msg::PeerId(peer) => {
                 self.peer_id = Some(peer);
 
                 true
-            }
+            } */
             Msg::Addrs(msg) => {
                 if msg != self.address {
-                    set_ipfs_addr(&msg);
-
                     spawn_local({
                         let cb = ctx.props().ipfs_cb.clone();
                         let url = msg.clone();
+                        let addr = msg.clone();
 
                         async move {
                             if let Some(context) = IPFSContext::new(Some(url)).await {
+                                set_ipfs_addr(addr);
+
                                 cb.emit(context);
                             }
                         }
@@ -147,8 +152,11 @@ impl Component for IPFSSettings {
         info!("IPFS Setting View");
 
         html! {
-        <ybc::Section>
-            <ybc::Container>
+        <Section>
+            <Container>
+                <Subtitle >
+                    {"InterPlanetary File System"}
+                </Subtitle>
                 {
                     match self.peer_id {
                         Some(peer_id) => self.render_connected(peer_id),
@@ -168,14 +176,14 @@ impl Component for IPFSSettings {
                     <p class="help"> { "External nodes can be configured for better performace but Brave browser nodes are more conveniant." } </p>
                 </div> */
                 <div class="field">
-                    <label class="label"> { "IPFS API" } </label>
+                    <label class="label"> { "API" } </label>
                     <div class="control is-expanded">
                         <input name="ipfs_addrs" value={self.address.clone()} onchange={self.address_cb.clone()} class="input" type="text" />
                     </div>
                     <p class="help"> { "Refresh to apply changes." } </p>
                 </div>
-            </ybc::Container>
-        </ybc::Section>
+            </Container>
+        </Section>
         }
     }
 }
@@ -199,7 +207,7 @@ impl IPFSSettings {
     fn render_connected(&self, peer_id: Cid) -> Html {
         html! {
             <div class="field">
-                <label class="label"> { "IPFS Peer ID" } </label>
+                <label class="label"> { "Peer ID" } </label>
                 <div class="control is-expanded">
                     <input name="ipfs_addrs" value={peer_id.to_string()} class="input is-static" type="text" readonly=true />
                 </div>
@@ -217,20 +225,20 @@ impl IPFSSettings {
 
         html! {
             <>
-                <ybc::Block>
+                <Block>
                 <span class="icon-text">
                     <span class="icon is-large has-text-danger"><i class="fas fa-exclamation-triangle fa-3x"></i></span>
                     <span class="title"> { "Cannot connect to IPFS" } </span>
                 </span>
-                </ybc::Block>
-                <ybc::Block>
+                </Block>
+                <Block>
                 <h2 class="subtitle">
                     { "Follow the installation guide in the " }
                     <a href="https://docs.ipfs.io/how-to/command-line-quick-start/"> { "IPFS Documentation" } </a>
                     { " or configure your node correctly." }
                 </h2>
-                </ybc::Block>
-                <ybc::Block>
+                </Block>
+                <Block>
                 <ol>
                     <li>
                         <p>{ "Is your IPFS daemon running? Start your daemon with the terminal command below." }</p>
@@ -246,7 +254,7 @@ impl IPFSSettings {
                             </a>
                             {"? If not, run these terminal commands and restart your daemon."}
                         </p>
-                        <ybc::Tabs classes={classes!("is-small")} >
+                        <Tabs classes={classes!("is-small")} >
                             <li class={if let OsType::Unix = self.os_type {"is-active"} else {""}} >
                                 <a onclick={self.unix_cb.clone()} >
                                     <span class="icon-text">
@@ -267,11 +275,11 @@ impl IPFSSettings {
                                     </span>
                                 </a>
                             </li>
-                        </ybc::Tabs>
+                        </Tabs>
                         { self.render_code() }
                     </li>
                 </ol>
-                </ybc::Block>
+                </Block>
             </>
         }
     }

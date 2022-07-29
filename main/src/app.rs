@@ -12,7 +12,7 @@ use cid::Cid;
 
 use utils::{
     ipfs::{get_ipfs_addr, IPFSContext},
-    web3::Web3Context,
+    web3::{get_wallet_addr, Web3Context},
 };
 
 use wasm_bindgen_futures::spawn_local;
@@ -78,7 +78,17 @@ impl Component for App {
 
         let web3_cb = ctx.link().callback(Msg::Web3);
 
-        //init web3 the same way?
+        if get_wallet_addr().is_some() {
+            spawn_local({
+                let cb = web3_cb.clone();
+
+                async move {
+                    if let Some(context) = Web3Context::new().await {
+                        cb.emit(context);
+                    }
+                }
+            });
+        }
 
         Self {
             ipfs_cb,

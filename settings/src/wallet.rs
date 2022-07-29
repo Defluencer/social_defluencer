@@ -1,18 +1,14 @@
 use linked_data::types::Address;
+
+use ybc::{Button, Container, Section, Subtitle};
+
 use yew::{context::ContextHandle, prelude::*};
 
-use utils::web3::{get_wallet_addr, set_wallet_addr, Web3Context};
+use utils::web3::{set_wallet_addr, Web3Context};
 
-use web_sys::{EventTarget, HtmlInputElement};
-
-use wasm_bindgen::JsCast;
 use wasm_bindgen_futures::spawn_local;
 
-use gloo_console::{error, info};
-
-use gloo_storage::{LocalStorage, Storage};
-
-use cid::Cid;
+use gloo_console::info;
 
 #[derive(Properties, PartialEq)]
 pub struct Props {
@@ -23,12 +19,11 @@ pub struct WalletSettings {
     address: Option<Address>,
     _context_handle: Option<ContextHandle<Web3Context>>,
 
-    wallet: String,
     wallet_cb: Callback<MouseEvent>,
 }
 
 pub enum Msg {
-    EthAddr(Address),
+    //EthAddr(Address),
     ConnectWallet,
 }
 
@@ -40,24 +35,24 @@ impl Component for WalletSettings {
         #[cfg(debug_assertions)]
         info!("Wallet Setting Create");
 
-        let address_cb = ctx
-            .link()
-            .callback(|context: Web3Context| Msg::EthAddr(context.addr));
+        /* let address_cb = ctx
+        .link()
+        .callback(|context: Web3Context| Msg::EthAddr(context.addr)); */
 
-        let (address, _context_handle) = match ctx.link().context::<Web3Context>(address_cb.clone())
+        let (address, _context_handle) = match ctx
+            .link()
+            .context::<Web3Context>(Callback::noop() /* address_cb.clone() */)
         {
             Some((context, handle)) => (Some(context.addr), Some(handle)),
             None => (None, None),
         };
 
-        let wallet = get_wallet_addr().unwrap_or_default();
         let wallet_cb = ctx.link().callback(|_e: MouseEvent| Msg::ConnectWallet);
 
         Self {
             address,
             _context_handle,
 
-            wallet,
             wallet_cb,
         }
     }
@@ -68,25 +63,24 @@ impl Component for WalletSettings {
 
         match msg {
             Msg::ConnectWallet => {
-                //TODO
-
                 spawn_local({
                     let cb = ctx.props().web3_cb.clone();
 
                     async move {
                         if let Some(context) = Web3Context::new().await {
+                            set_wallet_addr(hex::encode(context.addr));
+
                             cb.emit(context);
                         }
                     }
                 });
 
-                true
-            }
-            Msg::EthAddr(addr) => {
-                self.address = Some(addr);
+                false
+            } /* Msg::EthAddr(addr) => {
+                  self.address = Some(addr);
 
-                true
-            }
+                  true
+              } */
         }
     }
 
@@ -95,26 +89,41 @@ impl Component for WalletSettings {
         info!("Wallet Setting View");
 
         html! {
-        <ybc::Section>
-            <ybc::Container>
+        <Section>
+            <Container>
+                <Subtitle >
+                    {"Crypto Wallet"}
+                </Subtitle>
                 {
                     match self.address {
                         Some(addr) => self.render_connected(addr),
                         None => self.render_unconnected(),
                     }
                 }
-            </ybc::Container>
-        </ybc::Section>
+            </Container>
+        </Section>
         }
     }
 }
 
 impl WalletSettings {
     fn render_connected(&self, addr: Address) -> Html {
-        html! {}
+        html! {
+            <div class="field">
+                <label class="label"> { "Wallet Address" } </label>
+                <div class="control is-expanded">
+                    <input name="wallet_addrs" value={hex::encode(addr)} class="input is-static" type="text" readonly=true />
+                </div>
+                <p class="help"> { "Wallet address used by this App." } </p>
+            </div>
+        }
     }
 
     fn render_unconnected(&self) -> Html {
-        html! {}
+        html! {
+            <Button onclick={self.wallet_cb.clone()}>
+                {"Connect Wallet"}
+            </Button>
+        }
     }
 }
