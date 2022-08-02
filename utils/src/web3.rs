@@ -1,3 +1,4 @@
+use defluencer::signatures::ethereum::EthereumSigner;
 use web3::{
     api::Namespace,
     contract::ens::Ens,
@@ -18,6 +19,7 @@ pub struct Web3Context {
     pub client: Web3<Eip1193>,
     pub ens: Ens<Eip1193>,
     pub addr: Address,
+    pub signer: EthereumSigner,
 }
 
 impl PartialEq for Web3Context {
@@ -40,8 +42,9 @@ impl Web3Context {
         };
 
         let transport = Eip1193::new(provider);
-        let client = Web3::new(transport.clone());
-        let ens = Ens::new(transport);
+
+        let ens = Ens::new(transport.clone());
+        let client = Web3::new(transport);
 
         let addr = match client.eth().request_accounts().await {
             Ok(addresses) => addresses[0].0,
@@ -51,7 +54,14 @@ impl Web3Context {
             }
         };
 
-        Some(Self { client, ens, addr })
+        let signer = EthereumSigner::new(addr, client.clone());
+
+        Some(Self {
+            client,
+            ens,
+            addr,
+            signer,
+        })
     }
 }
 

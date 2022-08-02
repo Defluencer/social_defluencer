@@ -1,3 +1,4 @@
+mod identity;
 mod ipfs;
 mod wallet;
 
@@ -8,6 +9,8 @@ use yew::{function_component, html, Callback, Html, Properties};
 use ipfs::IPFSSettings;
 
 use wallet::WalletSettings;
+
+use identity::IdentitySettings;
 
 #[derive(Properties, PartialEq)]
 pub struct SettingPageProps {
@@ -24,6 +27,7 @@ pub fn settings(props: &SettingPageProps) -> Html {
         <>
         <IPFSSettings {ipfs_cb} />
         <WalletSettings {web3_cb} />
+        <IdentitySettings />
         </>
     }
 }

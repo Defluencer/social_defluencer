@@ -1,3 +1,4 @@
+use defluencer::Defluencer;
 use ipfs_api::{IpfsService, DEFAULT_URI};
 
 use linked_data::types::PeerId;
@@ -12,6 +13,7 @@ use serde::Serialize;
 pub struct IPFSContext {
     pub client: IpfsService,
     pub peer_id: PeerId,
+    pub defluencer: Defluencer,
 }
 
 impl PartialEq for IPFSContext {
@@ -45,7 +47,13 @@ impl IPFSContext {
             }
         };
 
-        Some(Self { client, peer_id })
+        let defluencer = Defluencer::new(client.clone());
+
+        Some(Self {
+            client,
+            peer_id,
+            defluencer,
+        })
     }
 }
 
