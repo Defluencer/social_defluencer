@@ -1,3 +1,5 @@
+#![cfg(target_arch = "wasm32")]
+
 // social.defluencer.eth/#/channel/<IPNS_HERE>
 // Stream content metadata from channel
 // Subscribe to the IPNS pubsub for live updates

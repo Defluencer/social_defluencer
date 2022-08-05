@@ -1,3 +1,5 @@
+#![cfg(target_arch = "wasm32")]
+
 // social.defluencer.eth/#/live/<CID_HERE>
 // Load live settings from CID
 // Subscribe to video & chat

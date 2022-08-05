@@ -1,3 +1,5 @@
+#![cfg(target_arch = "wasm32")]
+
 use yew::{function_component, html, Html};
 
 /// The App Landing Page.

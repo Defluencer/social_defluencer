@@ -1,3 +1,5 @@
+#![cfg(target_arch = "wasm32")]
+
 use defluencer::Defluencer;
 use ipfs_api::{IpfsService, DEFAULT_URI};
 

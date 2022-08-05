@@ -1,4 +1,7 @@
+#![cfg(target_arch = "wasm32")]
+
 use defluencer::signatures::ethereum::EthereumSigner;
+
 use web3::{
     api::Namespace,
     contract::ens::Ens,

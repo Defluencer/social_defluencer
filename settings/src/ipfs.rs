@@ -1,3 +1,5 @@
+#![cfg(target_arch = "wasm32")]
+
 use ybc::{Block, Container, Section, Subtitle, Tabs};
 
 use yew::{context::ContextHandle, prelude::*};

@@ -8,5 +8,6 @@ members = [
     "content",
     "channel",
     "live",
-    "utils"
+    "utils",
+    "components"
 ]

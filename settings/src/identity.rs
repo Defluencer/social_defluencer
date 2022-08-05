@@ -1,4 +1,19 @@
-use ybc::{Box, Button, Container, Content, Level, LevelItem, LevelLeft, Section, Subtitle};
+#![cfg(target_arch = "wasm32")]
+
+use std::collections::{HashMap, HashSet};
+
+use cid::Cid;
+
+use components::cid_explorer::CidExplorer;
+
+use utils::ipfs::IPFSContext;
+
+use web_sys::File as SysFile;
+
+use ybc::{
+    Button, Checkbox, Container, Control, Field, File, Input, Level, LevelItem, LevelLeft,
+    LevelRight, Section, Subtitle,
+};
 
 use yew::prelude::*;
 
@@ -6,48 +21,112 @@ use gloo_console::{error, info};
 
 use gloo_storage::{LocalStorage, Storage};
 
-use linked_data::identity::Identity;
+use wasm_bindgen_futures::spawn_local;
+
+use linked_data::{
+    identity::Identity,
+    types::{IPLDLink, IPNSAddress},
+};
+
+use ipfs_api::{responses::Codec, IpfsService};
 
 const CURRENT_ID_KEY: &str = "current_id";
 const ID_LIST_KEY: &str = "id_list";
-
-#[derive(Properties, PartialEq)]
-pub struct Props {}
 
 pub struct IdentitySettings {
     pub modal: bool,
     pub modal_cb: Callback<MouseEvent>,
 
-    current_id: usize,
-    id_list: Vec<Identity>,
+    current_id: Option<IPLDLink>,
+    identity_map: HashMap<Cid, Identity>,
+
+    name: String,
+    name_cb: Callback<String>,
+
+    channel: bool,
+    channel_cb: Callback<bool>,
+
+    files: Vec<SysFile>,
+    file_cb: Callback<Vec<SysFile>>,
+
+    identity_cb: Callback<MouseEvent>,
+    loading: bool,
 }
 
 pub enum Msg {
     Modal,
-    SetID(usize),
+    SetID(Cid),
+    DeleteID(Cid),
+    Name(String),
+    Channel(bool),
+    Files(Vec<SysFile>),
+    Create,
+
+    Done((Cid, Identity)),
+    GetIDs((Cid, Identity)),
 }
 
 impl Component for IdentitySettings {
     type Message = Msg;
-    type Properties = Props;
+    type Properties = ();
 
     fn create(ctx: &Context<Self>) -> Self {
         #[cfg(debug_assertions)]
         info!("Identity Setting Create");
 
-        let current_id: usize = LocalStorage::get(CURRENT_ID_KEY).unwrap_or_default();
-        let id_list: Vec<Identity> = LocalStorage::get(ID_LIST_KEY).unwrap_or_default();
+        let current_id: Option<IPLDLink> = LocalStorage::get(CURRENT_ID_KEY).ok();
+        let ipld_set: HashSet<IPLDLink> = LocalStorage::get(ID_LIST_KEY).unwrap_or_default();
+
+        let (context, _) = ctx
+            .link()
+            .context::<IPFSContext>(Callback::noop())
+            .expect("IPFS Context");
+        let ipfs = context.client;
+
+        let cb = ctx.link().callback(Msg::GetIDs);
+
+        for ipld in ipld_set {
+            spawn_local({
+                let cb = cb.clone();
+                let ipfs = ipfs.clone();
+
+                async move {
+                    match ipfs.dag_get::<String, Identity>(ipld.link, None).await {
+                        Ok(id) => cb.emit((ipld.link, id)),
+                        Err(e) => error!(&format!("{:?}", e)),
+                    }
+                }
+            });
+        }
+
+        let modal_cb = ctx.link().callback(|_| Msg::Modal);
+        let name_cb = ctx.link().callback(Msg::Name);
+        let channel_cb = ctx.link().callback(Msg::Channel);
+        let file_cb = ctx.link().callback(Msg::Files);
+        let identity_cb = ctx.link().callback(|_| Msg::Create);
 
         Self {
             modal: false,
-            modal_cb: ctx.link().callback(|_| Msg::Modal),
+            modal_cb,
 
             current_id,
-            id_list,
+            identity_map: HashMap::new(),
+
+            name: String::new(),
+            name_cb,
+
+            channel: false,
+            channel_cb,
+
+            files: vec![],
+            file_cb,
+
+            identity_cb,
+            loading: false,
         }
     }
 
-    fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool {
+    fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
         #[cfg(debug_assertions)]
         info!("Identity Setting Update");
 
@@ -57,10 +136,113 @@ impl Component for IdentitySettings {
 
                 true
             }
-            Msg::SetID(i) => {
-                if let Err(e) = LocalStorage::set(CURRENT_ID_KEY, i) {
+            Msg::SetID(cid) => self.set_current_identity(cid),
+            Msg::Name(name) => {
+                if name.is_empty() {
+                    return false;
+                }
+
+                self.name = name;
+
+                true
+            }
+            Msg::Channel(channel) => {
+                self.channel = channel;
+
+                true
+            }
+            Msg::Files(files) => {
+                if files.is_empty() {
+                    return false;
+                }
+
+                self.files = files;
+
+                true
+            }
+            Msg::Create => {
+                let (context, _) = ctx
+                    .link()
+                    .context::<IPFSContext>(Callback::noop())
+                    .expect("IPFS Context");
+
+                self.loading = true;
+
+                spawn_local(create_identity(
+                    context.client.clone(),
+                    self.files.pop().unwrap(),
+                    self.channel,
+                    self.name.clone(),
+                    ctx.link().callback(Msg::Done),
+                ));
+
+                true
+            }
+
+            Msg::Done((cid, identity)) => {
+                self.loading = false;
+                self.modal = false;
+
+                let mut id_list: Vec<IPLDLink> = LocalStorage::get(ID_LIST_KEY).unwrap_or_default();
+
+                id_list.push(cid.into());
+
+                if let Err(e) = LocalStorage::set(ID_LIST_KEY, id_list) {
                     error!(&format!("{:?}", e));
                 }
+
+                self.identity_map.insert(cid, identity);
+
+                if self.current_id.is_none() {
+                    self.set_current_identity(cid);
+                }
+
+                true
+            }
+            Msg::GetIDs((cid, identity)) => {
+                self.identity_map.insert(cid, identity);
+
+                true
+            }
+            Msg::DeleteID(cid) => {
+                let (context, _) = ctx
+                    .link()
+                    .context::<IPFSContext>(Callback::noop())
+                    .expect("IPFS Context");
+
+                self.identity_map.remove(&cid);
+
+                if self.current_id.is_some() && self.current_id.unwrap().link == cid {
+                    self.current_id = None;
+
+                    LocalStorage::delete(CURRENT_ID_KEY);
+                }
+
+                match LocalStorage::get(ID_LIST_KEY) {
+                    Ok::<HashSet<IPLDLink>, _>(mut id_list) => {
+                        id_list.remove(&cid.into());
+
+                        if let Err(e) = LocalStorage::set(ID_LIST_KEY, id_list) {
+                            error!(&format!("{:?}", e));
+                        }
+                    }
+                    Err(e) => error!(&format!("{:?}", e)),
+                }
+
+                spawn_local({
+                    let ipfs = context.client.clone();
+
+                    async move {
+                        if let Err(e) = ipfs.pin_rm(cid, true).await {
+                            error!(&format!("{:?}", e));
+                        }
+
+                        //TODO key remove?
+
+                        // once IPNS records are created with crypto wallet
+                        // Key in IPFS won't be needed
+                    }
+                });
 
                 true
             }
@@ -77,17 +259,8 @@ impl Component for IdentitySettings {
                 <Subtitle >
                     { "Identities" }
                 </Subtitle>
-                { self.render_modal() }
-                {
-                    self.id_list.iter().enumerate().map(|(i, item)| {
-                        let disabled = i == self.current_id;
-
-                        let cb = ctx.link().callback(move |_: MouseEvent| { Msg::SetID(i) });
-
-                        self.render_id(disabled, item, cb)
-
-                    } ).collect::<Html>()
-                }
+                { self.modal() }
+                { self.identity_display(ctx) }
                 <Button onclick={ self.modal_cb.clone() } >
                     { "Create New Identity" }
                 </Button>
@@ -98,7 +271,7 @@ impl Component for IdentitySettings {
 }
 
 impl IdentitySettings {
-    fn render_modal(&self) -> Html {
+    fn modal(&self) -> Html {
         html! {
         <div class= { if self.modal { "modal is-active" } else { "modal" } } >
             <div class="modal-background"></div>
@@ -111,47 +284,147 @@ impl IdentitySettings {
                     </button>
                 </header>
                 <section class="modal-card-body">
-                    <div class="field">
-                        <label class="label"> { "Display Name" } </label>
-                        <div class="control is-expanded">
-                            <input class="input" type="text" name="name_input" />
-                        </div>
-                        <p class="help"> { "Refresh to apply changes." } </p>
-                    </div>
-                    //TODO create an Identity from the form data
+                    <Field label="Display Name" >
+                        <Control>
+                            <Input name="name" value="" update={self.name_cb.clone()} />
+                        </Control>
+                    </Field>
+                    <Field label="Create Channel ?" >
+                        <Control>
+                            <Checkbox name="channel" checked=false update={self.channel_cb.clone()} />
+                        </Control>
+                    </Field>
+                    <Field label="Avatar" >
+                        <Control>
+                            <File name="avatar" files={self.files.clone()} update={self.file_cb.clone()} selector_label={"Choose an image..."} selector_icon={html!{<i class="fas fa-upload"></i>}} has_name={Some("image.jpg")} fullwidth=true />
+                        </Control>
+                    </Field>
                 </section>
                 <footer class="modal-card-foot">
-                    <button class="button is-success" onclick={/*TODO add Identity to IPFS*/}>
-                        { "Save changes" }
-                    </button>
-                    <button class="button" onclick={self.modal_cb.clone()}>
+                    <Button onclick={self.identity_cb.clone()} loading={self.loading} disabled={self.files.is_empty()} >
+                        { "Create New identity" }
+                    </Button>
+                    <Button onclick={self.modal_cb.clone()}>
                         { "Cancel" }
-                    </button>
+                    </Button>
                 </footer>
             </div>
         </div>
         }
     }
 
-    fn render_id(
-        &self,
-        disabled: bool,
-        identity: &Identity,
-        onclick: Callback<MouseEvent>,
-    ) -> Html {
-        html! {
-        <Level>
-            <LevelLeft>
-                <LevelItem>
-                    <Button {disabled} {onclick} >
-                        { "Set" }
-                    </Button>
-                </LevelItem>
-                <LevelItem>
-                    { &identity.display_name }
-                </LevelItem>
-            </LevelLeft>
-        </Level>
+    fn identity_display(&self, ctx: &Context<Self>) -> Html {
+        self.identity_map
+            .iter()
+            .map(|(cid, identity)| {
+                let cid = *cid;
+
+                let disabled = self.current_id.is_some() && cid == self.current_id.unwrap().link;
+
+                let set_cb = ctx.link().callback(move |_: MouseEvent| Msg::SetID(cid));
+                let delete_cb = ctx.link().callback(move |_: MouseEvent| Msg::DeleteID(cid));
+
+                html! {
+                <Level>
+                    <LevelLeft>
+                        <LevelItem>
+                            <Button {disabled} onclick={set_cb} >
+                                { "Set As Current" }
+                            </Button>
+                        </LevelItem>
+                        <LevelItem>
+                            { &identity.display_name }
+                        </LevelItem>
+                        <LevelItem>
+                            //TODO channel link
+                        </LevelItem>
+                        <LevelItem>
+                            <CidExplorer {cid} />
+                        </LevelItem>
+                    </LevelLeft>
+                    <LevelRight>
+                        <Button onclick={delete_cb} >
+                            <span class="icon is-small">
+                                <i class="fa-solid fa-trash-can"></i>
+                            </span>
+                        </Button>
+                    </LevelRight>
+                </Level>
+                }
+            })
+            .collect::<Html>()
+    }
+
+    fn set_current_identity(&mut self, cid: Cid) -> bool {
+        let link: IPLDLink = cid.into();
+
+        if let Err(e) = LocalStorage::set(CURRENT_ID_KEY, link) {
+            error!(&format!("{:?}", e));
         }
+
+        self.current_id = Some(link);
+
+        true
+    }
+}
+
+async fn create_identity(
+    ipfs: IpfsService,
+    file: SysFile,
+    channel: bool,
+    display_name: String,
+    cb: Callback<(Cid, Identity)>,
+) {
+    let avatar = match defluencer::utils::add_image(&ipfs, file).await {
+        Ok(cid) => Some(cid.into()),
+        Err(e) => {
+            error!(&format!("{:?}", e));
+            return;
+        }
+    };
+
+    let mut channel_ipns = None;
+
+    if channel {
+        use heck::ToSnakeCase;
+
+        let key = display_name.to_snake_case();
+
+        let key_pair = match ipfs.key_gen(key).await {
+            Ok(kp) => kp,
+            Err(e) => {
+                error!(&format!("{:?}", e));
+                return;
+            }
+        };
+
+        let addr = match IPNSAddress::try_from(key_pair.id.as_str()) {
+            Ok(addr) => addr,
+            Err(e) => {
+                error!(&format!("{:?}", e));
+                return;
+            }
+        };
+
+        channel_ipns = Some(addr);
+    }
+
+    let identity = Identity {
+        display_name,
+        avatar,
+        channel_ipns,
+    };
+
+    let cid = match ipfs.dag_put(&identity, Codec::default()).await {
+        Ok(cid) => cid,
+        Err(e) => {
+            error!(&format!("{:?}", e));
+            return;
+        }
+    };
+
+    match ipfs.pin_add(cid, true).await {
+        Ok(_) => cb.emit((cid, identity)),
+        Err(e) => error!(&format!("{:?}", e)),
     }
 }

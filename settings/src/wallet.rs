@@ -1,3 +1,5 @@
+#![cfg(target_arch = "wasm32")]
+
 use linked_data::types::Address;
 
 use ybc::{Button, Container, Section, Subtitle};
