@@ -2,10 +2,17 @@
 
 use yew::{function_component, html, Html};
 
+use components::navbar::NavigationBar;
+
 /// The Personal Feed Page.
 #[function_component(FeedPage)]
 pub fn feed() -> Html {
-    html! { "Feed Page" }
+    html! {
+        <>
+        <NavigationBar />
+        { "Feed page WIP" }
+        </>
+    }
 }
 
 // social.defluencer.eth/#/feed/

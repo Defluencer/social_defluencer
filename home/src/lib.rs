@@ -2,10 +2,17 @@
 
 use yew::{function_component, html, Html};
 
+use components::navbar::NavigationBar;
+
 /// The App Landing Page.
 #[function_component(HomePage)]
 pub fn home() -> Html {
-    html! { "Home Page" }
+    html! {
+        <>
+        <NavigationBar />
+        { "Home Page WIP" }
+        </>
+    }
 }
 
 // social.defluencer.eth/#/home/

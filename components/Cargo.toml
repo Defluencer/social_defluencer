@@ -7,5 +7,6 @@ edition = "2021"
 
 ybc = { git = "https://github.com/Sionois/ybc", branch = "deps_fix" }
 yew = { git = "https://github.com/SionoiS/yew", branch = "remove-tokio", features = ["csr"] }
+yew-router = { git = "https://github.com/SionoiS/yew", branch = "remove-tokio", default-features = false }
 
 cid = { version = "0.8", default-features = false, features = ["std"] }

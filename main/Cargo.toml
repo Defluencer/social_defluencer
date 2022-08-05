@@ -11,6 +11,7 @@ home = { path = "../home" }
 live = { path = "../live" }
 settings = { path = "../settings" }
 utils = { path = "../utils" }
+components = { path = "../components" }
 
 linked-data = { git = "https://github.com/Defluencer/rust-defluencer", branch = "develop" }
 
@@ -18,7 +19,7 @@ ybc = { git = "https://github.com/Sionois/ybc", branch = "deps_fix", default-fea
 yew = { git = "https://github.com/SionoiS/yew", branch = "remove-tokio", default-features = false, features = ["csr"] }
 yew-router = { git = "https://github.com/SionoiS/yew", branch = "remove-tokio", default-features = false }
 
-cid = { version = "0.8", default-features = false, features = ["std"] }
+#cid = { version = "0.8", default-features = false, features = ["std"] }
 gloo-console = { version = "0.2", default-features = false, features = [] }
 wasm-bindgen-futures = { version = "0.4", default-features = false, features = [] }
 

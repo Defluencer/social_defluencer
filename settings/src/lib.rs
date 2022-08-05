@@ -14,6 +14,8 @@ use wallet::WalletSettings;
 
 use identity::IdentitySettings;
 
+use components::navbar::NavigationBar;
+
 #[derive(Properties, PartialEq)]
 pub struct SettingPageProps {
     pub ipfs_cb: Callback<IPFSContext>,
@@ -34,6 +36,7 @@ pub fn settings(props: &SettingPageProps) -> Html {
 
     html! {
         <>
+        <NavigationBar />
         <IPFSSettings {ipfs_cb} />
         <WalletSettings {web3_cb} />
         {identity_settings}

@@ -10,7 +10,7 @@ use home::HomePage;
 use live::LivePage;
 use settings::SettingPage;
 
-use cid::Cid;
+use components::navbar::Route;
 
 use utils::{
     ipfs::{get_ipfs_addr, IPFSContext},
@@ -20,28 +20,6 @@ use utils::{
 use wasm_bindgen_futures::spawn_local;
 
 use gloo_console::info;
-
-#[derive(Routable, Clone, PartialEq)]
-enum Route {
-    #[at("/channel/:cid")]
-    Channel { cid: Cid }, // social.defluencer.eth/#/channel/<IPNS_HERE>
-
-    #[at("/content/:cid")]
-    Content { cid: Cid }, // social.defluencer.eth/#/content/<CID_HERE>
-
-    #[at("/feed")]
-    Feed, // social.defluencer.eth/#/feed/
-
-    #[at("/live/:cid")]
-    Live { cid: Cid }, // social.defluencer.eth/#/live/<CID_HERE>
-
-    #[at("/settings")]
-    Settings,
-
-    #[not_found]
-    #[at("/home")]
-    Home, // social.defluencer.eth/#/home/
-}
 
 pub enum Msg {
     IPFS(IPFSContext),
