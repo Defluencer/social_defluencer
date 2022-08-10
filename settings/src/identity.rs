@@ -6,7 +6,13 @@ use cid::Cid;
 
 use components::cid_explorer::CidExplorer;
 
-use utils::ipfs::IPFSContext;
+use utils::{
+    identity::{
+        clear_current_identity, get_current_identity, get_identities, set_current_identity,
+        set_identities,
+    },
+    ipfs::IPFSContext,
+};
 
 use web_sys::File as SysFile;
 
@@ -19,8 +25,6 @@ use yew::prelude::*;
 
 use gloo_console::{error, info};
 
-use gloo_storage::{LocalStorage, Storage};
-
 use wasm_bindgen_futures::spawn_local;
 
 use linked_data::{
@@ -29,9 +33,6 @@ use linked_data::{
 };
 
 use ipfs_api::{responses::Codec, IpfsService};
-
-const CURRENT_ID_KEY: &str = "current_id";
-const ID_LIST_KEY: &str = "id_list";
 
 pub struct IdentitySettings {
     pub modal: bool,
@@ -74,8 +75,8 @@ impl Component for IdentitySettings {
         #[cfg(debug_assertions)]
         info!("Identity Setting Create");
 
-        let current_id: Option<IPLDLink> = LocalStorage::get(CURRENT_ID_KEY).ok();
-        let ipld_set: HashSet<IPLDLink> = LocalStorage::get(ID_LIST_KEY).unwrap_or_default();
+        let current_id: Option<IPLDLink> = get_current_identity();
+        let ipld_set: HashSet<IPLDLink> = get_identities().unwrap_or_default();
 
         let (context, _) = ctx
             .link()
@@ -183,13 +184,9 @@ impl Component for IdentitySettings {
                 self.loading = false;
                 self.modal = false;
 
-                let mut id_list: Vec<IPLDLink> = LocalStorage::get(ID_LIST_KEY).unwrap_or_default();
-
-                id_list.push(cid.into());
-
-                if let Err(e) = LocalStorage::set(ID_LIST_KEY, id_list) {
-                    error!(&format!("{:?}", e));
-                }
+                let mut id_list = get_identities().unwrap_or_default();
+                id_list.insert(cid.into());
+                set_identities(id_list);
 
                 self.identity_map.insert(cid, identity);
 
@@ -215,18 +212,13 @@ impl Component for IdentitySettings {
                 if self.current_id.is_some() && self.current_id.unwrap().link == cid {
                     self.current_id = None;
 
-                    LocalStorage::delete(CURRENT_ID_KEY);
+                    clear_current_identity();
                 }
 
-                match LocalStorage::get(ID_LIST_KEY) {
-                    Ok::<HashSet<IPLDLink>, _>(mut id_list) => {
-                        id_list.remove(&cid.into());
+                if let Some(mut id_list) = get_identities() {
+                    id_list.remove(&cid.into());
 
-                        if let Err(e) = LocalStorage::set(ID_LIST_KEY, id_list) {
-                            error!(&format!("{:?}", e));
-                        }
-                    }
-                    Err(e) => error!(&format!("{:?}", e)),
+                    set_identities(id_list);
                 }
 
                 spawn_local({
@@ -358,9 +350,7 @@ impl IdentitySettings {
     fn set_current_identity(&mut self, cid: Cid) -> bool {
         let link: IPLDLink = cid.into();
 
-        if let Err(e) = LocalStorage::set(CURRENT_ID_KEY, link) {
-            error!(&format!("{:?}", e));
-        }
+        set_current_identity(link);
 
         self.current_id = Some(link);
 

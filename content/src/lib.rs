@@ -1,3 +1,20 @@
+#![cfg(target_arch = "wasm32")]
+
+mod comment;
+mod commentary;
+mod content;
+mod identification;
+
+use commentary::Comments;
+
+use components::navbar::NavigationBar;
+
+use content::Content;
+
+use yew::{function_component, html, Html, Properties};
+
+use cid::Cid;
+
 // social.defluencer.eth/#/content/<CID_HERE>
 // Load the content CID
 // Display the content according to type.
@@ -7,28 +24,20 @@
 // Exporting content as CARs?
 // Explore DAG?
 
-use yew::prelude::*;
-
-use cid::Cid;
-
 #[derive(Properties, PartialEq)]
-pub struct Props {
+pub struct ContentPageProps {
     pub cid: Cid,
 }
 
-pub struct ContentPage;
+#[function_component(ContentPage)]
+pub fn content_page(props: &ContentPageProps) -> Html {
+    let cid = props.cid;
 
-pub enum Msg {}
-
-impl Component for ContentPage {
-    type Message = Msg;
-    type Properties = Props;
-
-    fn create(_ctx: &Context<Self>) -> Self {
-        Self
-    }
-
-    fn view(&self, _ctx: &Context<Self>) -> Html {
-        html! { "Content Page" }
+    html! {
+    <>
+    <NavigationBar />
+    <Content {cid} />
+    <Comments {cid} />
+    </>
     }
 }
