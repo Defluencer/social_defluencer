@@ -258,6 +258,13 @@ name = "components"
 version = "0.1.0"
 dependencies = [
  "cid",
+ "either",
+ "gloo-console",
+ "ipfs-api",
+ "js-sys",
+ "linked-data",
+ "utils",
+ "web-sys",
  "ybc",
  "yew",
  "yew-router",
@@ -291,7 +298,6 @@ dependencies = [
  "ipfs-api",
  "linked-data",
  "utils",
- "wasm-bindgen-futures",
  "ybc",
  "yew",
 ]

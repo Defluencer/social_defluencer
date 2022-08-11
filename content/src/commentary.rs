@@ -2,17 +2,18 @@
 
 use std::collections::HashSet;
 
-use futures_util::{StreamExt, TryStreamExt};
+use futures_util::{stream::FuturesUnordered, StreamExt, TryStreamExt};
 
-use linked_data::identity::Identity;
+use linked_data::{
+    identity::Identity,
+    types::{IPLDLink, IPNSAddress},
+};
 
-use utils::ipfs::IPFSContext;
-
-use wasm_bindgen_futures::spawn_local;
+use utils::{follows::get_follow_list, ipfs::IPFSContext};
 
 use ybc::{Container, Section};
 
-use yew::prelude::*;
+use yew::{platform::spawn_local, prelude::*};
 
 use cid::Cid;
 
@@ -32,87 +33,124 @@ pub struct Props {
     pub cid: Cid,
 }
 
-pub struct Comments {
+pub struct Commentary {
+    ipfs: IpfsService,
+
     comments_set: HashSet<Cid>,
 }
 
 pub enum Msg {
     Comment(Cid),
+    Follows(Vec<Identity>),
 }
 
-impl Component for Comments {
+impl Component for Commentary {
     type Message = Msg;
     type Properties = Props;
 
     fn create(ctx: &Context<Self>) -> Self {
         #[cfg(debug_assertions)]
-        info!("Content Page Create");
+        info!("Commentary Create");
 
         let (context, _) = ctx
             .link()
             .context::<IPFSContext>(Callback::noop())
             .expect("IPFS Context");
 
-        spawn_local(get_comment_cids(
-            ctx.link().callback(Msg::Comment),
-            context.client.clone(),
-            ctx.props().cid,
-        ));
+        let ipfs = context.client;
+
+        let follows = get_follow_list();
+
+        ctx.link()
+            .send_future(get_local_follows(ipfs.clone(), ctx.props().cid, follows));
 
         Self {
+            ipfs,
             comments_set: HashSet::default(),
         }
     }
 
-    fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool {
+    fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
+        #[cfg(debug_assertions)]
+        info!("Commentary Update");
+
         match msg {
             Msg::Comment(cid) => self.comments_set.insert(cid),
+            Msg::Follows(vec) => {
+                let addresses = vec
+                    .into_iter()
+                    .filter_map(|item| item.channel_ipns)
+                    .collect();
+
+                spawn_local(get_comment_cids(
+                    ctx.link().callback(Msg::Comment),
+                    self.ipfs.clone(),
+                    ctx.props().cid,
+                    addresses,
+                ));
+
+                false
+            }
         }
     }
 
     fn view(&self, _ctx: &Context<Self>) -> Html {
         #[cfg(debug_assertions)]
-        info!("Content Page View");
+        info!("Commentary View");
+
+        let comment_list = self
+            .comments_set
+            .iter()
+            .map(|cid| {
+                let cid = *cid;
+
+                html! {
+                    <Comment {cid} />
+                }
+            })
+            .collect::<Html>();
 
         html! {
         <Section>
             <Container>
-            {
-                self.comments_set.iter().map(|cid| {
-                    let cid = *cid;
-
-                    html! {
-                        <Comment {cid} />
-                    }
-                }).collect::<Html>()
-            }
+                { comment_list }
             </Container>
         </Section>
         }
     }
 }
 
-async fn get_comment_cids(callback: Callback<Cid>, ipfs: IpfsService, cid: Cid) {
-    // What context should be used for comments?
-    // Could load channel of creator of content first then local follow list
+async fn get_local_follows(ipfs: IpfsService, cid: Cid, follows: HashSet<IPLDLink>) -> Msg {
+    let pool: FuturesUnordered<_> = follows
+        .into_iter()
+        .map(|ipld| ipfs.dag_get::<&str, Identity>(ipld.link, None))
+        .collect();
 
-    let defluencer = Defluencer::new(ipfs.clone());
+    pool.push(ipfs.dag_get::<&str, Identity>(cid, Some("/identity")));
 
-    let identity: Identity = match ipfs.dag_get(cid, Some("/identity")).await {
-        Ok(id) => id,
-        Err(e) => {
-            error!(&format!("{:#?}", e));
-            return;
-        }
-    };
+    let vec = pool
+        .filter_map(|result| async move {
+            match result {
+                Ok(id) => Some(id),
+                Err(e) => {
+                    error!(&format!("{:#?}", e));
+                    None
+                }
+            }
+        })
+        .collect()
+        .await;
 
-    let mut addresses = HashSet::new();
+    Msg::Follows(vec)
+}
 
-    if let Some(ipns) = identity.channel_ipns {
-        addresses.insert(ipns);
-    }
-
-    //TODO add addresses from local follow list
+async fn get_comment_cids(
+    callback: Callback<Cid>,
+    ipfs: IpfsService,
+    cid: Cid,
+    addresses: HashSet<IPNSAddress>,
+) {
+    let defluencer = Defluencer::new(ipfs);
 
     defluencer
         .streaming_web_crawl(addresses.into_iter())

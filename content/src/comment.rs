@@ -1,15 +1,14 @@
 #![cfg(target_arch = "wasm32")]
 
 use components::cid_explorer::CidExplorer;
+
 use utils::timestamp_to_datetime;
 
 use cid::Cid;
 
 use utils::ipfs::IPFSContext;
 
-use wasm_bindgen_futures::spawn_local;
-
-use yew::prelude::*;
+use yew::{platform::spawn_local, prelude::*};
 
 use gloo_console::error;
 

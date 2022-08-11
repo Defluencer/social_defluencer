@@ -5,7 +5,7 @@ mod commentary;
 mod content;
 mod identification;
 
-use commentary::Comments;
+use commentary::Commentary;
 
 use components::navbar::NavigationBar;
 
@@ -33,11 +33,15 @@ pub struct ContentPageProps {
 pub fn content_page(props: &ContentPageProps) -> Html {
     let cid = props.cid;
 
+    //TODO check connection to ipfs
+
+    //TODO if not connected display error
+
     html! {
     <>
     <NavigationBar />
     <Content {cid} />
-    <Comments {cid} />
+    <Commentary {cid} />
     </>
     }
 }

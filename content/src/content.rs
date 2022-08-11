@@ -1,27 +1,29 @@
 #![cfg(target_arch = "wasm32")]
 
-use utils::ipfs::IPFSContext;
+use defluencer::signatures::signed_link::SignedLink;
+use ipfs_api::IpfsService;
+use utils::{ipfs::IPFSContext, timestamp_to_datetime};
 
-use wasm_bindgen_futures::spawn_local;
-
-use linked_data::{
-    comments::Comment,
-    media::{
-        blog::{FullPost, MicroPost},
-        video::Video,
-        Media,
-    },
+use linked_data::media::{
+    blog::{FullPost, MicroPost},
+    video::Video,
+    Media,
 };
 
-use ybc::{Container, Section};
+use ybc::{
+    Block, Box, Container, ImageSize, Level, LevelItem, LevelLeft, LevelRight, MediaContent,
+    MediaLeft, MediaRight, Section, Title,
+};
 
-use yew::prelude::*;
+use yew::{platform::spawn_local, prelude::*};
 
 use cid::Cid;
 
 use gloo_console::{error, info};
 
-use components::loading::Loading;
+use components::{cid_explorer::CidExplorer, image::Image, loading::Loading};
+
+use crate::{comment::Comment, identification::Identification};
 
 #[derive(Properties, PartialEq)]
 pub struct Props {
@@ -29,8 +31,10 @@ pub struct Props {
 }
 
 pub struct Content {
-    media: Option<Media>,
     _handle: ContextHandle<IPFSContext>,
+
+    media: Option<Media>,
+    dt: String,
 }
 
 pub enum Msg {
@@ -43,35 +47,34 @@ impl Component for Content {
 
     fn create(ctx: &Context<Self>) -> Self {
         #[cfg(debug_assertions)]
-        info!("Content Page Create");
+        info!("Content Create");
 
         let (context, _handle) = ctx
             .link()
             .context::<IPFSContext>(Callback::noop())
             .expect("IPFS Context");
 
-        spawn_local({
-            let cb = ctx.link().callback(Msg::Media);
-            let ipfs = context.client.clone();
-            let cid = ctx.props().cid;
-
-            async move {
-                match ipfs.dag_get::<String, Media>(cid, None).await {
-                    Ok(dag) => cb.emit(dag),
-                    Err(e) => error!(&format!("{:#?}", e)),
-                }
-            }
-        });
+        spawn_local(get_content(
+            context.client.clone(),
+            ctx.link().callback(Msg::Media),
+            ctx.props().cid,
+        ));
 
         Self {
-            media: None,
             _handle,
+
+            media: None,
+            dt: String::new(),
         }
     }
 
     fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool {
+        #[cfg(debug_assertions)]
+        info!("Content Update");
+
         match msg {
             Msg::Media(media) => {
+                self.dt = timestamp_to_datetime(media.user_timestamp());
                 self.media = Some(media);
 
                 true
@@ -79,9 +82,9 @@ impl Component for Content {
         }
     }
 
-    fn view(&self, _ctx: &Context<Self>) -> Html {
+    fn view(&self, ctx: &Context<Self>) -> Html {
         #[cfg(debug_assertions)]
-        info!("Content Page View");
+        info!("Content View");
 
         html! {
         <Section>
@@ -89,10 +92,10 @@ impl Component for Content {
             {
                 match &self.media {
                     Some(media) => match media {
-                        Media::MicroBlog(blog) => self.render_microblog(blog),
-                        Media::Blog(blog) => self.render_article(blog),
-                        Media::Video(video) => self.render_video(video),
-                        Media::Comment(comment) => self.render_comment(comment),
+                        Media::MicroBlog(blog) => self.render_microblog(ctx, blog),
+                        Media::Blog(blog) => self.render_article(ctx, blog),
+                        Media::Video(video) => self.render_video(ctx, video),
+                        Media::Comment(_) => self.render_comment(ctx),
                     },
                     None => self.render_loading(),
                 }
@@ -110,35 +113,123 @@ impl Content {
         }
     }
 
-    fn render_microblog(&self, blog: &MicroPost) -> Html {
+    fn render_microblog(&self, ctx: &Context<Self>, blog: &MicroPost) -> Html {
         html! {
-            <>
-
-            </>
+        <Box>
+            <ybc::Media>
+                <MediaLeft>
+                    <Identification cid={blog.identity.link} />
+                    <Block>
+                        <span class="icon-text">
+                            <span class="icon"><i class="fas fa-clock"></i></span>
+                            <span> { &self.dt } </span>
+                        </span>
+                    </Block>
+                </MediaLeft>
+                <MediaContent>
+                    <ybc::Content classes={classes!("has-text-centered")} >
+                        { &blog.content }
+                    </ybc::Content>
+                </MediaContent>
+                <MediaRight>
+                    <CidExplorer cid={ctx.props().cid} />
+                </MediaRight>
+            </ybc::Media>
+        </Box>
         }
     }
 
-    fn render_article(&self, article: &FullPost) -> Html {
+    fn render_article(&self, ctx: &Context<Self>, article: &FullPost) -> Html {
         html! {
-            <>
-
-            </>
+        <Box>
+            <Title>
+                { &article.title }
+            </Title>
+            <ybc::Image size={ImageSize::Is16by9} >
+                <Image cid={article.image.link}  />
+            </ybc::Image>
+            <Level>
+                <LevelLeft>
+                    <LevelItem>
+                        <Identification cid={article.identity.link} />
+                    </LevelItem>
+                    <LevelItem>
+                        <span class="icon-text">
+                            <span class="icon"><i class="fas fa-clock"></i></span>
+                            <span> { &self.dt } </span>
+                        </span>
+                    </LevelItem>
+                </LevelLeft>
+                <LevelRight>
+                    <LevelItem>
+                        <CidExplorer cid={ctx.props().cid} />
+                    </LevelItem>
+                </LevelRight>
+            </Level>
+            <ybc::Content>
+                //TODO <Markdown cid={article.content.link} />
+            </ybc::Content>
+        </Box>
         }
     }
 
-    fn render_video(&self, video: &Video) -> Html {
+    fn render_video(&self, ctx: &Context<Self>, video: &Video) -> Html {
         html! {
-            <>
-
-            </>
+        <Box>
+            <Title>
+                { &video.title }
+            </Title>
+            //TODO <VideoPlayer cid={video.video.link} />
+            <Level>
+                <LevelLeft>
+                    <LevelItem>
+                        <Identification cid={video.identity.link} />
+                    </LevelItem>
+                    <LevelItem>
+                        <span class="icon-text">
+                            <span class="icon"><i class="fas fa-clock"></i></span>
+                            <span> { &self.dt } </span>
+                        </span>
+                    </LevelItem>
+                </LevelLeft>
+                <LevelRight>
+                    <LevelItem>
+                        <CidExplorer cid={ctx.props().cid} />
+                    </LevelItem>
+                </LevelRight>
+            </Level>
+        </Box>
         }
     }
 
-    fn render_comment(&self, comment: &Comment) -> Html {
+    fn render_comment(&self, ctx: &Context<Self>) -> Html {
         html! {
-            <>
-
-            </>
+            <Comment cid={ctx.props().cid} />
         }
     }
+}
+
+async fn get_content(ipfs: IpfsService, callback: Callback<Media>, cid: Cid) {
+    let signed_link = match ipfs.dag_get::<&str, SignedLink>(cid, None).await {
+        Ok(dag) => dag,
+        Err(e) => {
+            error!(&format!("{:#?}", e));
+            return;
+        }
+    };
+
+    //TODO To prove content authenticity the signature must be valid and the identity (public key) must match
+
+    let media = match ipfs
+        .dag_get::<&str, Media>(signed_link.link.link, None)
+        .await
+    {
+        Ok(dag) => dag,
+        Err(e) => {
+            error!(&format!("{:#?}", e));
+            return;
+        }
+    };
+
+    callback.emit(media);
 }

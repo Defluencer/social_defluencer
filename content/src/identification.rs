@@ -3,10 +3,12 @@
 use cid::Cid;
 
 use gloo_console::error;
+
 use utils::ipfs::IPFSContext;
-use wasm_bindgen_futures::spawn_local;
+
 use ybc::Block;
-use yew::prelude::*;
+
+use yew::{platform::spawn_local, prelude::*};
 
 use linked_data::identity::Identity;
 
@@ -14,6 +16,8 @@ use linked_data::identity::Identity;
 pub struct Props {
     pub cid: Cid,
 }
+
+//TODO To prove content authenticity the signature must be valid and the identity (public key) must match
 
 pub struct Identification {
     identity: Option<Identity>,
