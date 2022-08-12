@@ -3,7 +3,11 @@
 mod comment;
 mod commentary;
 mod content;
+mod ema;
 mod identification;
+mod markdown;
+mod md_renderer;
+mod video;
 
 use commentary::Commentary;
 

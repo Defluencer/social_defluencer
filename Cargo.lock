@@ -293,11 +293,17 @@ dependencies = [
  "cid",
  "components",
  "defluencer",
+ "either",
  "futures-util",
  "gloo-console",
  "ipfs-api",
  "linked-data",
+ "pulldown-cmark",
+ "serde",
+ "serde_json",
  "utils",
+ "wasm-bindgen",
+ "web-sys",
  "ybc",
  "yew",
 ]
@@ -1723,6 +1729,17 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
+]
+
+[[package]]
+name = "pulldown-cmark"
+version = "0.9.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2d9cc634bc78768157b5cbfe988ffcd1dcba95cd2b2f03a88316c08c6d00ed63"
+dependencies = [
+ "bitflags",
+ "memchr",
+ "unicase",
 ]
 
 [[package]]

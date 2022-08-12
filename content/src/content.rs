@@ -23,7 +23,9 @@ use gloo_console::{error, info};
 
 use components::{cid_explorer::CidExplorer, image::Image, loading::Loading};
 
-use crate::{comment::Comment, identification::Identification};
+use crate::{
+    comment::Comment, identification::Identification, md_renderer::Markdown, video::VideoPlayer,
+};
 
 #[derive(Properties, PartialEq)]
 pub struct Props {
@@ -35,10 +37,11 @@ pub struct Content {
 
     media: Option<Media>,
     dt: String,
+    pk: Vec<u8>,
 }
 
 pub enum Msg {
-    Media(Media),
+    Media((Media, Vec<u8>)),
 }
 
 impl Component for Content {
@@ -65,6 +68,7 @@ impl Component for Content {
 
             media: None,
             dt: String::new(),
+            pk: Vec::new(),
         }
     }
 
@@ -73,9 +77,10 @@ impl Component for Content {
         info!("Content Update");
 
         match msg {
-            Msg::Media(media) => {
+            Msg::Media((media, pk)) => {
                 self.dt = timestamp_to_datetime(media.user_timestamp());
                 self.media = Some(media);
+                self.pk = pk;
 
                 true
             }
@@ -97,7 +102,9 @@ impl Component for Content {
                         Media::Video(video) => self.render_video(ctx, video),
                         Media::Comment(_) => self.render_comment(ctx),
                     },
-                    None => self.render_loading(),
+                    None => html! {
+                            <Loading />
+                        },
                 }
             }
             </Container>
@@ -107,18 +114,12 @@ impl Component for Content {
 }
 
 impl Content {
-    fn render_loading(&self) -> Html {
-        html! {
-            <Loading />
-        }
-    }
-
     fn render_microblog(&self, ctx: &Context<Self>, blog: &MicroPost) -> Html {
         html! {
         <Box>
             <ybc::Media>
                 <MediaLeft>
-                    <Identification cid={blog.identity.link} />
+                    <Identification cid={blog.identity.link} pk={Some(self.pk.clone())} />
                     <Block>
                         <span class="icon-text">
                             <span class="icon"><i class="fas fa-clock"></i></span>
@@ -151,7 +152,7 @@ impl Content {
             <Level>
                 <LevelLeft>
                     <LevelItem>
-                        <Identification cid={article.identity.link} />
+                        <Identification cid={article.identity.link} pk={Some(self.pk.clone())} />
                     </LevelItem>
                     <LevelItem>
                         <span class="icon-text">
@@ -167,7 +168,7 @@ impl Content {
                 </LevelRight>
             </Level>
             <ybc::Content>
-                //TODO <Markdown cid={article.content.link} />
+                <Markdown cid={article.content.link} />
             </ybc::Content>
         </Box>
         }
@@ -179,11 +180,11 @@ impl Content {
             <Title>
                 { &video.title }
             </Title>
-            //TODO <VideoPlayer cid={video.video.link} />
+                <VideoPlayer cid={ctx.props().cid} />
             <Level>
                 <LevelLeft>
                     <LevelItem>
-                        <Identification cid={video.identity.link} />
+                        <Identification cid={video.identity.link} pk={Some(self.pk.clone())} />
                     </LevelItem>
                     <LevelItem>
                         <span class="icon-text">
@@ -209,7 +210,7 @@ impl Content {
     }
 }
 
-async fn get_content(ipfs: IpfsService, callback: Callback<Media>, cid: Cid) {
+async fn get_content(ipfs: IpfsService, callback: Callback<(Media, Vec<u8>)>, cid: Cid) {
     let signed_link = match ipfs.dag_get::<&str, SignedLink>(cid, None).await {
         Ok(dag) => dag,
         Err(e) => {
@@ -218,7 +219,13 @@ async fn get_content(ipfs: IpfsService, callback: Callback<Media>, cid: Cid) {
         }
     };
 
-    //TODO To prove content authenticity the signature must be valid and the identity (public key) must match
+    if !signed_link.verify() {
+        error!("Content Verification Failed!");
+        return;
+    }
+
+    //TODO use hash???
+    let pk = signed_link.public_key;
 
     let media = match ipfs
         .dag_get::<&str, Media>(signed_link.link.link, None)
@@ -231,5 +238,5 @@ async fn get_content(ipfs: IpfsService, callback: Callback<Media>, cid: Cid) {
         }
     };
 
-    callback.emit(media);
+    callback.emit((media, pk));
 }
