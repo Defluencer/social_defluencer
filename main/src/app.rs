@@ -95,6 +95,8 @@ impl Component for App {
         let ipfs_cb = self.ipfs_cb.clone();
         let web3_cb = self.web3_cb.clone();
 
+        //TODO display error for any page requiring IPFS, if not connected
+
         let app = html! {
             <HashRouter>
                 <Switch<Route> render={move |route| {

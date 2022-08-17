@@ -1,32 +1,34 @@
 #![cfg(target_arch = "wasm32")]
 
-// social.defluencer.eth/#/live/<CID_HERE>
-// Load live settings from CID
-// Subscribe to video & chat
-// Display video and chat
+use ybc::{Box, Column, Columns, Section};
 
-use yew::prelude::*;
+use yew::{classes, function_component, html, Html, Properties};
 
 use cid::Cid;
 
-pub enum Msg {}
+use components::chat::ChatWindow;
+use components::video_player::VideoPlayer;
 
 #[derive(Properties, PartialEq)]
-pub struct Props {
+pub struct LivePageProps {
     pub cid: Cid,
 }
 
-pub struct LivePage;
-
-impl Component for LivePage {
-    type Message = Msg;
-    type Properties = Props;
-
-    fn create(_ctx: &Context<Self>) -> Self {
-        Self
-    }
-
-    fn view(&self, _ctx: &Context<Self>) -> Html {
-        html! { "Live Page" }
+/// social.defluencer.eth/#/live/CID_HERE
+#[function_component(LivePage)]
+pub fn live_page(props: &LivePageProps) -> Html {
+    html! {
+    <Section>
+        <Columns>
+            <Column>
+                <Box>
+                    <VideoPlayer cid={props.cid} />
+                </Box>
+            </Column>
+            <Column classes={classes!("is-one-fifth")} >
+                <ChatWindow cid={props.cid} />
+            </Column>
+        </Columns>
+    </Section>
     }
 }

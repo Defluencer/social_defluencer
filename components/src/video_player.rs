@@ -20,6 +20,7 @@ use linked_data::{
 };
 
 use serde::{Deserialize, Serialize};
+
 use utils::{ipfs::IPFSContext, seconds_to_timecode};
 
 use wasm_bindgen::{closure::Closure, JsCast};
@@ -496,10 +497,7 @@ impl VideoPlayer {
         }
 
         #[cfg(debug_assertions)]
-        info!(&format!(
-            "Setup Node \n {}",
-            &serde_json::to_string_pretty(&setup_node).expect("Can't print")
-        ));
+        info!(&format!("Setup Node \n {:#?}", setup_node));
 
         #[cfg(debug_assertions)]
         info!("Listing Tracks");

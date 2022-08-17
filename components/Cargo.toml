@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 utils = { path = "../utils" }
 
+defluencer = { git = "https://github.com/Defluencer/rust-defluencer", branch = "develop" }
 linked-data = { git = "https://github.com/Defluencer/rust-defluencer", branch = "develop" }
 ipfs-api = { git = "https://github.com/Defluencer/rust-defluencer", branch = "develop" }
 
@@ -15,10 +16,20 @@ yew-router = { git = "https://github.com/SionoiS/yew", branch = "remove-tokio", 
 
 cid = { version = "0.8", default-features = false, features = ["std"] }
 either = { version = "1", default-features = false, features = [] }
+futures-util = { version = "0.3", default-features = false, features = [] }
 gloo-console = { version = "0.2", default-features = false, features = [] }
 js-sys = { version = "0.3.59", default-features = false, features = [] }
+serde = { version = "1", default-features = false, features = [] }
+serde_json = { version = "1", default-features = false, features = [] }
+wasm-bindgen = { version = "0.2.82", default-features = false, features = [] }
 web-sys = { version = "0.3.59", default-features = false, features = [
     "File",
     "FilePropertyBag",
     "Url",
+    "HtmlMediaElement",
+    "MediaSource",
+    "MediaSourceReadyState",
+    "SourceBuffer",
+    "TimeRanges",
+    "Performance"
 ]}

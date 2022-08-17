@@ -15,19 +15,8 @@ ybc = { git = "https://github.com/Sionois/ybc", branch = "deps_fix" }
 yew = { git = "https://github.com/SionoiS/yew", branch = "remove-tokio", features = ["csr"] }
 
 cid = { version = "0.8", default-features = false, features = ["alloc"] }
-either = { version = "1", default-features = false, features = ["serde"] }
 futures-util = { version = "0.3", default-features = false, features = [] }
 gloo-console = { version = "0.2", default-features = false, features = [] }
 pulldown-cmark = { version = "0.9", default-features = false, features = [] }
-serde = "1"
-serde_json = "1"
-wasm-bindgen = { version = "0.2.82", default-features = false, features = [] }
-web-sys = { version = "0.3.59", default-features = false, features = [
-    "HtmlMediaElement",
-    "MediaSource",
-    "MediaSourceReadyState",
-    "SourceBuffer",
-    "TimeRanges",
-    "Performance"
-]}
+
 

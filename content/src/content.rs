@@ -1,7 +1,9 @@
 #![cfg(target_arch = "wasm32")]
 
 use defluencer::signatures::signed_link::SignedLink;
+
 use ipfs_api::IpfsService;
+
 use utils::{ipfs::IPFSContext, timestamp_to_datetime};
 
 use linked_data::media::{
@@ -21,11 +23,11 @@ use cid::Cid;
 
 use gloo_console::{error, info};
 
-use components::{cid_explorer::CidExplorer, image::Image, loading::Loading};
-
-use crate::{
-    comment::Comment, identification::Identification, md_renderer::Markdown, video::VideoPlayer,
+use components::{
+    cid_explorer::CidExplorer, image::Image, loading::Loading, video_player::VideoPlayer,
 };
+
+use crate::{comment::Comment, identification::Identification, md_renderer::Markdown};
 
 #[derive(Properties, PartialEq)]
 pub struct Props {
@@ -33,8 +35,6 @@ pub struct Props {
 }
 
 pub struct Content {
-    _handle: ContextHandle<IPFSContext>,
-
     media: Option<Media>,
     dt: String,
     pk: Vec<u8>,
@@ -52,7 +52,7 @@ impl Component for Content {
         #[cfg(debug_assertions)]
         info!("Content Create");
 
-        let (context, _handle) = ctx
+        let (context, _) = ctx
             .link()
             .context::<IPFSContext>(Callback::noop())
             .expect("IPFS Context");
@@ -64,8 +64,6 @@ impl Component for Content {
         ));
 
         Self {
-            _handle,
-
             media: None,
             dt: String::new(),
             pk: Vec::new(),

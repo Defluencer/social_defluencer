@@ -3,11 +3,9 @@
 mod comment;
 mod commentary;
 mod content;
-mod ema;
 mod identification;
 mod markdown;
 mod md_renderer;
-mod video;
 
 use commentary::Commentary;
 
@@ -19,27 +17,17 @@ use yew::{function_component, html, Html, Properties};
 
 use cid::Cid;
 
-// social.defluencer.eth/#/content/<CID_HERE>
-// Load the content CID
-// Display the content according to type.
-// Agregate comments while the user consume the content.
-// Display comments
-
-// Exporting content as CARs?
-// Explore DAG?
-
 #[derive(Properties, PartialEq)]
 pub struct ContentPageProps {
     pub cid: Cid,
 }
 
+/// social.defluencer.eth/#/content/<CID_HERE>
 #[function_component(ContentPage)]
 pub fn content_page(props: &ContentPageProps) -> Html {
     let cid = props.cid;
 
-    //TODO check connection to ipfs
-
-    //TODO if not connected display error
+    //TODO Exporting content as CARs
 
     html! {
     <>
