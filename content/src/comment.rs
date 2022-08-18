@@ -14,7 +14,7 @@ use gloo_console::error;
 
 use ybc::{Block, Box, Content, Media, MediaContent, MediaLeft, MediaRight};
 
-use crate::identification::Identification;
+use components::identification::Identification;
 
 #[derive(Properties, PartialEq)]
 pub struct Props {

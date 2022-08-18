@@ -222,6 +222,13 @@ name = "channel"
 version = "0.1.0"
 dependencies = [
  "cid",
+ "components",
+ "defluencer",
+ "futures-util",
+ "gloo-console",
+ "ipfs-api",
+ "linked-data",
+ "utils",
  "ybc",
  "yew",
 ]

@@ -24,10 +24,11 @@ use cid::Cid;
 use gloo_console::{error, info};
 
 use components::{
-    cid_explorer::CidExplorer, image::Image, loading::Loading, video_player::VideoPlayer,
+    cid_explorer::CidExplorer, identification::Identification, image::Image, searching::Searching,
+    video_player::VideoPlayer,
 };
 
-use crate::{comment::Comment, identification::Identification, md_renderer::Markdown};
+use crate::{comment::Comment, md_renderer::Markdown};
 
 #[derive(Properties, PartialEq)]
 pub struct Props {
@@ -101,7 +102,7 @@ impl Component for Content {
                         Media::Comment(_) => self.render_comment(ctx),
                     },
                     None => html! {
-                            <Loading />
+                            <Searching />
                         },
                 }
             }
@@ -117,7 +118,7 @@ impl Content {
         <Box>
             <ybc::Media>
                 <MediaLeft>
-                    <Identification cid={blog.identity.link} pk={Some(self.pk.clone())} />
+                    <Identification cid={blog.identity.link} />
                     <Block>
                         <span class="icon-text">
                             <span class="icon"><i class="fas fa-clock"></i></span>
@@ -150,7 +151,7 @@ impl Content {
             <Level>
                 <LevelLeft>
                     <LevelItem>
-                        <Identification cid={article.identity.link} pk={Some(self.pk.clone())} />
+                        <Identification cid={article.identity.link} />
                     </LevelItem>
                     <LevelItem>
                         <span class="icon-text">
@@ -182,7 +183,7 @@ impl Content {
             <Level>
                 <LevelLeft>
                     <LevelItem>
-                        <Identification cid={video.identity.link} pk={Some(self.pk.clone())} />
+                        <Identification cid={video.identity.link} />
                     </LevelItem>
                     <LevelItem>
                         <span class="icon-text">

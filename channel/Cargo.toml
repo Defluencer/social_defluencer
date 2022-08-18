@@ -4,7 +4,16 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+utils = { path = "../utils" }
+components = { path = "../components" }
+
+linked-data = { git = "https://github.com/Defluencer/rust-defluencer", branch = "develop" }
+ipfs-api = { git = "https://github.com/Defluencer/rust-defluencer", branch = "develop" }
+defluencer = { git = "https://github.com/Defluencer/rust-defluencer", branch = "develop" }
+
 ybc = { git = "https://github.com/Sionois/ybc", branch = "deps_fix" }
 yew = { git = "https://github.com/SionoiS/yew", branch = "remove-tokio", features = ["csr"] }
 
 cid = { version = "0.8", default-features = false, features = ["std"] }
+futures-util = { version = "0.3", default-features = false, features = [] }
+gloo-console = { version = "0.2", default-features = false, features = [] }

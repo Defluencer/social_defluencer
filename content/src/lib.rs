@@ -3,7 +3,6 @@
 mod comment;
 mod commentary;
 mod content;
-mod identification;
 mod markdown;
 mod md_renderer;
 

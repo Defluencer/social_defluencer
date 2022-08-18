@@ -15,7 +15,6 @@ use linked_data::identity::Identity;
 #[derive(Properties, PartialEq)]
 pub struct Props {
     pub cid: Cid,
-    pub pk: Option<Vec<u8>>,
 }
 
 //TODO To prove content authenticity the signature must be valid and the identity (public key) must match
