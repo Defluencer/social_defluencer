@@ -37,14 +37,7 @@ impl Component for WalletSettings {
         #[cfg(debug_assertions)]
         info!("Wallet Setting Create");
 
-        /* let address_cb = ctx
-        .link()
-        .callback(|context: Web3Context| Msg::EthAddr(context.addr)); */
-
-        let (address, _context_handle) = match ctx
-            .link()
-            .context::<Web3Context>(Callback::noop() /* address_cb.clone() */)
-        {
+        let (address, _context_handle) = match ctx.link().context::<Web3Context>(Callback::noop()) {
             Some((context, handle)) => (Some(context.addr), Some(handle)),
             None => (None, None),
         };
@@ -78,11 +71,7 @@ impl Component for WalletSettings {
                 });
 
                 false
-            } /* Msg::EthAddr(addr) => {
-                  self.address = Some(addr);
-
-                  true
-              } */
+            }
         }
     }
 

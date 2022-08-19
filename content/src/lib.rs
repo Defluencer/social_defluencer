@@ -22,6 +22,8 @@ pub struct ContentPageProps {
 }
 
 /// social.defluencer.eth/#/content/<CID_HERE>
+///
+/// Page displaying specific content & comments
 #[function_component(ContentPage)]
 pub fn content_page(props: &ContentPageProps) -> Html {
     let cid = props.cid;

@@ -48,14 +48,7 @@ impl Component for IPFSSettings {
         #[cfg(debug_assertions)]
         info!("IPFS Setting Create");
 
-        /* let peer_id_cb = ctx
-        .link()
-        .callback(|context: IPFSContext| Msg::PeerId(context.peer_id.into())); */
-
-        let (peer_id, _context_handle) = match ctx
-            .link()
-            .context::<IPFSContext>(Callback::noop() /* peer_id_cb.clone() */)
-        {
+        let (peer_id, _context_handle) = match ctx.link().context::<IPFSContext>(Callback::noop()) {
             Some((context, handle)) => (Some(context.peer_id.into()), Some(handle)),
             None => (None, None),
         };

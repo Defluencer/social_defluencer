@@ -4,6 +4,7 @@ use yew::{function_component, html, Html};
 
 use components::navbar::NavigationBar;
 
+//? social.defluencer.eth/#/home/
 /// The App Landing Page.
 #[function_component(HomePage)]
 pub fn home() -> Html {
@@ -15,7 +16,6 @@ pub fn home() -> Html {
     }
 }
 
-// social.defluencer.eth/#/home/
 // Header This is decentralized social media
 // Features explanations
 // Button to start -> config IPFS

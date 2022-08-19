@@ -95,31 +95,39 @@ impl Component for App {
         let ipfs_cb = self.ipfs_cb.clone();
         let web3_cb = self.web3_cb.clone();
 
-        //TODO display error for any page requiring IPFS, if not connected
-
-        let app = html! {
-            <HashRouter>
-                <Switch<Route> render={move |route| {
-                    match route {
-                        Route::Channel { cid } => html!{ <ChannelPage {cid} /> },
-                        Route::Content { cid } => html!{ <ContentPage {cid} /> },
-                        Route::Feed => html!{ <FeedPage /> },
-                        Route::Home => html!{ <HomePage /> },
-                        Route::Live { cid } => html!{ <LivePage {cid} />},
-                        Route::Settings => html!{ <SettingPage ipfs_cb={ipfs_cb.clone()} web3_cb={web3_cb.clone()} /> },
-                    }}}
-                />
-            </HashRouter>
-        };
-
+        // If IPFS is not working displaying pages is pointless
         let app = if let Some(context) = self.ipfs_context.as_ref() {
             html! {
             <ContextProvider<IPFSContext> context={context.clone()} >
-                {app}
+                <HashRouter>
+                    <Switch<Route> render={move |route| {
+                        match route {
+                            Route::Channel { cid } => html!{ <ChannelPage {cid} /> },
+                            Route::Content { cid } => html!{ <ContentPage {cid} /> },
+                            Route::Feed => html!{ <FeedPage /> },
+                            Route::Home => html!{ <HomePage /> },
+                            Route::Live { cid } => html!{ <LivePage {cid} />},
+                            Route::Settings => html!{ <SettingPage ipfs_cb={ipfs_cb.clone()} web3_cb={web3_cb.clone()} /> },
+                        }}}
+                    />
+                </HashRouter>
             </ContextProvider<IPFSContext>>
             }
         } else {
-            app
+            html! {
+                <HashRouter>
+                    <Switch<Route> render={move |route| {
+                        match route {
+                            Route::Channel { cid: _ } => html!{ <SettingPage ipfs_cb={ipfs_cb.clone()} web3_cb={web3_cb.clone()} /> },
+                            Route::Content { cid: _ } => html!{ <SettingPage ipfs_cb={ipfs_cb.clone()} web3_cb={web3_cb.clone()} /> },
+                            Route::Feed => html!{ <SettingPage ipfs_cb={ipfs_cb.clone()} web3_cb={web3_cb.clone()} /> },
+                            Route::Home => html!{ <HomePage /> },
+                            Route::Live { cid: _ } => html!{ <SettingPage ipfs_cb={ipfs_cb.clone()} web3_cb={web3_cb.clone()} /> },
+                            Route::Settings => html!{ <SettingPage ipfs_cb={ipfs_cb.clone()} web3_cb={web3_cb.clone()} /> },
+                        }}}
+                    />
+                </HashRouter>
+            }
         };
 
         let app = if let Some(context) = self.web3_context.as_ref() {

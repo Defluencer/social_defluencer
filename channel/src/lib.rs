@@ -41,6 +41,8 @@ pub struct Props {
 //TODO If live, display video
 
 /// social.defluencer.eth/#/channel/<IPNS_HERE>
+///
+/// A specific channel page
 pub struct ChannelPage {
     handle: AbortHandle,
 
