@@ -17,3 +17,4 @@ yew = { git = "https://github.com/SionoiS/yew", branch = "remove-tokio", feature
 cid = { version = "0.8", default-features = false, features = ["std"] }
 futures-util = { version = "0.3", default-features = false, features = [] }
 gloo-console = { version = "0.2", default-features = false, features = [] }
+web-sys = { version = "0.3.59", default-features = false, features = ["File"] }

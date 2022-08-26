@@ -35,8 +35,8 @@ pub fn get_current_identity() -> Option<IPLDLink> {
     None
 }
 
-pub fn set_current_identity(id: IPLDLink) {
-    if let Err(e) = LocalStorage::set(CURRENT_ID_KEY, id) {
+pub fn set_current_identity(ipld: IPLDLink) {
+    if let Err(e) = LocalStorage::set(CURRENT_ID_KEY, ipld) {
         error!(&format!("{:?}", e));
     }
 }

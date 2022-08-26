@@ -4,21 +4,25 @@ use std::collections::{HashMap, HashSet};
 
 use cid::Cid;
 
-use components::cid_explorer::CidExplorer;
+use components::{cid_explorer::CidExplorer, navbar::Route};
+
+use defluencer::channel::Channel;
 
 use utils::{
+    defluencer::{ChannelContext, UserContext},
     identity::{
         clear_current_identity, get_current_identity, get_identities, set_current_identity,
         set_identities,
     },
     ipfs::IPFSContext,
+    web3::Web3Context,
 };
 
 use web_sys::File as SysFile;
 
 use ybc::{
-    Button, Checkbox, Container, Control, Field, File, Input, Level, LevelItem, LevelLeft,
-    LevelRight, Section, Subtitle,
+    Button, ButtonRouter, Checkbox, Container, Control, Field, File, Input, Level, LevelItem,
+    LevelLeft, LevelRight, Section, Subtitle,
 };
 
 use yew::prelude::*;
@@ -27,16 +31,19 @@ use gloo_console::{error, info};
 
 use wasm_bindgen_futures::spawn_local;
 
-use linked_data::{
-    identity::Identity,
-    types::{IPLDLink, IPNSAddress},
-};
+use linked_data::{identity::Identity, types::IPLDLink};
 
 use ipfs_api::{responses::Codec, IpfsService};
 
+#[derive(Properties, PartialEq)]
+pub struct Props {
+    pub user_cb: Callback<UserContext>,
+    pub channel_cb: Callback<ChannelContext>,
+}
+
 pub struct IdentitySettings {
-    pub modal: bool,
-    pub modal_cb: Callback<MouseEvent>,
+    modal: bool,
+    modal_cb: Callback<MouseEvent>,
 
     current_id: Option<IPLDLink>,
     identity_map: HashMap<Cid, Identity>,
@@ -63,20 +70,21 @@ pub enum Msg {
     Files(Vec<SysFile>),
     Create,
 
-    Done((Cid, Identity)),
+    IdentityCreated((Cid, Identity)),
     GetIDs((Cid, Identity)),
 }
 
 impl Component for IdentitySettings {
     type Message = Msg;
-    type Properties = ();
+    type Properties = Props;
 
     fn create(ctx: &Context<Self>) -> Self {
         #[cfg(debug_assertions)]
         info!("Identity Setting Create");
 
         let current_id: Option<IPLDLink> = get_current_identity();
-        let ipld_set: HashSet<IPLDLink> = get_identities().unwrap_or_default();
+
+        let identity_set: HashSet<IPLDLink> = get_identities().unwrap_or_default();
 
         let (context, _) = ctx
             .link()
@@ -86,14 +94,14 @@ impl Component for IdentitySettings {
 
         let cb = ctx.link().callback(Msg::GetIDs);
 
-        for ipld in ipld_set {
+        for identity in identity_set {
             spawn_local({
                 let cb = cb.clone();
                 let ipfs = ipfs.clone();
 
                 async move {
-                    match ipfs.dag_get::<String, Identity>(ipld.link, None).await {
-                        Ok(id) => cb.emit((ipld.link, id)),
+                    match ipfs.dag_get::<&str, Identity>(identity.link, None).await {
+                        Ok(id) => cb.emit((identity.link, id)),
                         Err(e) => error!(&format!("{:?}", e)),
                     }
                 }
@@ -132,112 +140,15 @@ impl Component for IdentitySettings {
         info!("Identity Setting Update");
 
         match msg {
-            Msg::Modal => {
-                self.modal = !self.modal;
-
-                true
-            }
-            Msg::SetID(cid) => self.set_current_identity(cid),
-            Msg::Name(name) => {
-                if name.is_empty() {
-                    return false;
-                }
-
-                self.name = name;
-
-                true
-            }
-            Msg::Channel(channel) => {
-                self.channel = channel;
-
-                true
-            }
-            Msg::Files(files) => {
-                if files.is_empty() {
-                    return false;
-                }
-
-                self.files = files;
-
-                true
-            }
-            Msg::Create => {
-                let (context, _) = ctx
-                    .link()
-                    .context::<IPFSContext>(Callback::noop())
-                    .expect("IPFS Context");
-
-                self.loading = true;
-
-                spawn_local(create_identity(
-                    context.client.clone(),
-                    self.files.pop().unwrap(),
-                    self.channel,
-                    self.name.clone(),
-                    ctx.link().callback(Msg::Done),
-                ));
-
-                true
-            }
-
-            Msg::Done((cid, identity)) => {
-                self.loading = false;
-                self.modal = false;
-
-                let mut id_list = get_identities().unwrap_or_default();
-                id_list.insert(cid.into());
-                set_identities(id_list);
-
-                self.identity_map.insert(cid, identity);
-
-                if self.current_id.is_none() {
-                    self.set_current_identity(cid);
-                }
-
-                true
-            }
-            Msg::GetIDs((cid, identity)) => {
-                self.identity_map.insert(cid, identity);
-
-                true
-            }
-            Msg::DeleteID(cid) => {
-                let (context, _) = ctx
-                    .link()
-                    .context::<IPFSContext>(Callback::noop())
-                    .expect("IPFS Context");
-
-                self.identity_map.remove(&cid);
-
-                if self.current_id.is_some() && self.current_id.unwrap().link == cid {
-                    self.current_id = None;
-
-                    clear_current_identity();
-                }
-
-                if let Some(mut id_list) = get_identities() {
-                    id_list.remove(&cid.into());
-
-                    set_identities(id_list);
-                }
-
-                spawn_local({
-                    let ipfs = context.client.clone();
-
-                    async move {
-                        if let Err(e) = ipfs.pin_rm(cid, true).await {
-                            error!(&format!("{:?}", e));
-                        }
-
-                        //TODO key remove?
-
-                        // once IPNS records are created with crypto wallet
-                        // Key in IPFS won't be needed
-                    }
-                });
-
-                true
-            }
+            Msg::Modal => self.on_modal(),
+            Msg::SetID(cid) => self.on_set_identity(cid, ctx),
+            Msg::Name(name) => self.on_name(name),
+            Msg::Channel(channel) => self.on_channel(channel),
+            Msg::Files(files) => self.on_files(files),
+            Msg::Create => self.on_create(ctx),
+            Msg::IdentityCreated((cid, identity)) => self.on_identity_created(ctx, cid, identity),
+            Msg::GetIDs((cid, identity)) => self.on_ids(cid, identity),
+            Msg::DeleteID(cid) => self.on_delete(cid, ctx),
         }
     }
 
@@ -251,8 +162,8 @@ impl Component for IdentitySettings {
                 <Subtitle >
                     { "Identities" }
                 </Subtitle>
-                { self.modal() }
-                { self.identity_display(ctx) }
+                { self.render_modal() }
+                { self.render_identities(ctx) }
                 <Button onclick={ self.modal_cb.clone() } >
                     { "Create New Identity" }
                 </Button>
@@ -263,7 +174,7 @@ impl Component for IdentitySettings {
 }
 
 impl IdentitySettings {
-    fn modal(&self) -> Html {
+    fn render_modal(&self) -> Html {
         html! {
         <div class= { if self.modal { "modal is-active" } else { "modal" } } >
             <div class="modal-background"></div>
@@ -305,7 +216,7 @@ impl IdentitySettings {
         }
     }
 
-    fn identity_display(&self, ctx: &Context<Self>) -> Html {
+    fn render_identities(&self, ctx: &Context<Self>) -> Html {
         self.identity_map
             .iter()
             .map(|(cid, identity)| {
@@ -316,30 +227,45 @@ impl IdentitySettings {
                 let set_cb = ctx.link().callback(move |_: MouseEvent| Msg::SetID(cid));
                 let delete_cb = ctx.link().callback(move |_: MouseEvent| Msg::DeleteID(cid));
 
+                let channel = if let Some(addr) = identity.channel_ipns {
+                    html! {
+                    <LevelItem>
+                        <ButtonRouter<Route> route={Route::Channel { cid: addr.into() }}>
+                            <span class="icon-text">
+                                <span class="icon"><i class="fas fa-rss"></i></span>
+                                <span> {"Go To Channel"} </span>
+                            </span>
+                        </ButtonRouter<Route>>
+                    </LevelItem>
+                    }
+                } else {
+                    html! {}
+                };
+
                 html! {
                 <Level>
                     <LevelLeft>
+                        <LevelItem>
+                            { &identity.display_name }
+                        </LevelItem>
                         <LevelItem>
                             <Button {disabled} onclick={set_cb} >
                                 { "Set As Current" }
                             </Button>
                         </LevelItem>
-                        <LevelItem>
-                            { &identity.display_name }
-                        </LevelItem>
-                        <LevelItem>
-                            //TODO channel link
-                        </LevelItem>
+                        { channel }
+                    </LevelLeft>
+                    <LevelRight>
                         <LevelItem>
                             <CidExplorer {cid} />
                         </LevelItem>
-                    </LevelLeft>
-                    <LevelRight>
-                        <Button onclick={delete_cb} >
-                            <span class="icon is-small">
-                                <i class="fa-solid fa-trash-can"></i>
-                            </span>
-                        </Button>
+                        <LevelItem>
+                            <Button onclick={delete_cb} >
+                                <span class="icon is-small">
+                                    <i class="fa-solid fa-trash-can"></i>
+                                </span>
+                            </Button>
+                        </LevelItem>
                     </LevelRight>
                 </Level>
                 }
@@ -347,12 +273,169 @@ impl IdentitySettings {
             .collect::<Html>()
     }
 
-    fn set_current_identity(&mut self, cid: Cid) -> bool {
+    fn on_set_identity(&mut self, cid: Cid, ctx: &Context<Self>) -> bool {
         let link: IPLDLink = cid.into();
-
         set_current_identity(link);
-
         self.current_id = Some(link);
+
+        if let Some(identity) = self.identity_map.get(&cid) {
+            let (context, _) = ctx
+                .link()
+                .context::<IPFSContext>(Callback::noop())
+                .expect("IPFS Context");
+            let ipfs = context.client;
+
+            let (web3_context, _) = ctx
+                .link()
+                .context::<Web3Context>(Callback::noop())
+                .expect("Web3 Context");
+            let signer = web3_context.signer;
+
+            ctx.props()
+                .user_cb
+                .emit(UserContext::new(ipfs.clone(), signer, cid));
+
+            if let Some(addr) = identity.channel_ipns {
+                use heck::ToSnakeCase;
+                let key = identity.display_name.to_snake_case();
+
+                let context = ChannelContext::new(ipfs, key, addr);
+
+                ctx.props().channel_cb.emit(context);
+            }
+        }
+
+        true
+    }
+
+    /// Callback when a new identity was created
+    fn on_identity_created(&mut self, ctx: &Context<Self>, cid: Cid, identity: Identity) -> bool {
+        self.loading = false;
+        self.modal = false;
+
+        let mut id_list = get_identities().unwrap_or_default();
+        id_list.insert(cid.into());
+        set_identities(id_list);
+
+        self.identity_map.insert(cid, identity.clone());
+
+        if self.current_id.is_none() {
+            let link: IPLDLink = cid.into();
+            set_current_identity(link);
+            self.current_id = Some(link);
+
+            let (context, _) = ctx
+                .link()
+                .context::<IPFSContext>(Callback::noop())
+                .expect("IPFS Context");
+            let ipfs = context.client;
+
+            let (web3_context, _) = ctx
+                .link()
+                .context::<Web3Context>(Callback::noop())
+                .expect("Web3 Context");
+            let signer = web3_context.signer;
+
+            ctx.props()
+                .user_cb
+                .emit(UserContext::new(ipfs.clone(), signer, cid));
+
+            if let Some(addr) = identity.channel_ipns {
+                use heck::ToSnakeCase;
+                let key = identity.display_name.to_snake_case();
+
+                let context = ChannelContext::new(ipfs, key, addr);
+
+                ctx.props().channel_cb.emit(context);
+            }
+        }
+
+        true
+    }
+
+    fn on_modal(&mut self) -> bool {
+        self.modal = !self.modal;
+
+        true
+    }
+
+    fn on_name(&mut self, name: String) -> bool {
+        if self.name == name {
+            return false;
+        }
+
+        self.name = name;
+
+        true
+    }
+
+    fn on_channel(&mut self, channel: bool) -> bool {
+        if self.channel == channel {
+            return false;
+        }
+
+        self.channel = channel;
+
+        true
+    }
+
+    fn on_files(&mut self, files: Vec<SysFile>) -> bool {
+        if self.files == files {
+            return false;
+        }
+
+        self.files = files;
+
+        true
+    }
+
+    fn on_create(&mut self, ctx: &Context<Self>) -> bool {
+        let (context, _) = ctx
+            .link()
+            .context::<IPFSContext>(Callback::noop())
+            .expect("IPFS Context");
+
+        spawn_local(create_identity(
+            context.client.clone(),
+            self.files.pop().unwrap(),
+            self.channel,
+            self.name.clone(),
+            ctx.link().callback(Msg::IdentityCreated),
+        ));
+
+        self.loading = true;
+
+        true
+    }
+
+    /// Callback when receiving identity from the list of all identities
+    fn on_ids(&mut self, cid: Cid, identity: Identity) -> bool {
+        if self.identity_map.insert(cid, identity).is_some() {
+            return false;
+        }
+
+        true
+    }
+
+    fn on_delete(&mut self, cid: Cid, _ctx: &Context<Self>) -> bool {
+        let _identity = match self.identity_map.remove(&cid) {
+            Some(id) => id,
+            None => return false,
+        };
+
+        if self.current_id == Some(cid.into()) {
+            self.current_id = None;
+
+            clear_current_identity();
+        }
+
+        if let Some(mut id_list) = get_identities() {
+            if id_list.remove(&cid.into()) {
+                set_identities(id_list);
+            }
+        }
+
+        //TODO remove local node of the keys and unpin the identity if needed
 
         true
     }
@@ -373,36 +456,10 @@ async fn create_identity(
         }
     };
 
-    let mut channel_ipns = None;
-
-    if channel {
-        use heck::ToSnakeCase;
-
-        let key = display_name.to_snake_case();
-
-        let key_pair = match ipfs.key_gen(key).await {
-            Ok(kp) => kp,
-            Err(e) => {
-                error!(&format!("{:?}", e));
-                return;
-            }
-        };
-
-        let addr = match IPNSAddress::try_from(key_pair.id.as_str()) {
-            Ok(addr) => addr,
-            Err(e) => {
-                error!(&format!("{:?}", e));
-                return;
-            }
-        };
-
-        channel_ipns = Some(addr);
-    }
-
-    let identity = Identity {
+    let mut identity = Identity {
         display_name,
         avatar,
-        channel_ipns,
+        channel_ipns: None,
     };
 
     let cid = match ipfs.dag_put(&identity, Codec::default()).await {
@@ -413,8 +470,21 @@ async fn create_identity(
         }
     };
 
-    match ipfs.pin_add(cid, true).await {
-        Ok(_) => cb.emit((cid, identity)),
-        Err(e) => error!(&format!("{:?}", e)),
+    if channel {
+        let (channel, cid) = match Channel::create_local(ipfs, cid).await {
+            Ok(tuple) => tuple,
+            Err(e) => {
+                error!(&format!("{:?}", e));
+                return;
+            }
+        };
+
+        identity.channel_ipns = Some(channel.get_address());
+
+        cb.emit((cid, identity));
+
+        return;
     }
+
+    cb.emit((cid, identity));
 }

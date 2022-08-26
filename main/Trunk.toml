@@ -12,6 +12,7 @@ public_url = "/"
 # Paths to watch. The `build.target`'s parent folder is watched by default.
 watch = [
     "../channel",
+    "../components",
     "../content",
     "../feed",
     "../home",

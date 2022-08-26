@@ -1,5 +1,9 @@
 #![cfg(target_arch = "wasm32")]
 
+mod create_content;
+
+use create_content::CreateContent;
+
 use std::collections::VecDeque;
 
 use components::{
@@ -14,7 +18,7 @@ use futures_util::{
     StreamExt,
 };
 
-use gloo_console::error;
+use gloo_console::{error, info};
 
 use ipfs_api::IpfsService;
 
@@ -35,8 +39,6 @@ use cid::Cid;
 pub struct Props {
     pub cid: Cid,
 }
-
-//TODO If your channel, add buttons to post & remove stuff
 
 //TODO If live, display video
 
@@ -61,6 +63,9 @@ impl Component for ChannelPage {
     type Properties = Props;
 
     fn create(ctx: &Context<Self>) -> Self {
+        #[cfg(debug_assertions)]
+        info!("Channel Page Create");
+
         let (context, _) = ctx
             .link()
             .context::<IPFSContext>(Callback::noop())
@@ -77,6 +82,7 @@ impl Component for ChannelPage {
 
         Self {
             handle,
+
             metadata: None,
 
             content: Default::default(),
@@ -84,25 +90,64 @@ impl Component for ChannelPage {
     }
 
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
+        #[cfg(debug_assertions)]
+        info!("Channel Page Update");
+
         match msg {
             Msg::Update(metadata) => self.on_channel_update(ctx, metadata),
             Msg::Content(cid) => self.on_channel_content(ctx, cid),
         }
     }
 
-    fn view(&self, _ctx: &Context<Self>) -> Html {
+    fn view(&self, ctx: &Context<Self>) -> Html {
+        #[cfg(debug_assertions)]
+        info!("Channel Page View");
+
         match &self.metadata {
-            Some(meta) => self.render_channel(meta),
+            Some(meta) => self.render_channel(ctx, meta),
             None => self.render_no_channel(),
         }
     }
 
     fn destroy(&mut self, _ctx: &Context<Self>) {
+        #[cfg(debug_assertions)]
+        info!("Channel Page Destroy");
+
         self.handle.abort();
     }
 }
 
 impl ChannelPage {
+    fn render_channel(&self, ctx: &Context<ChannelPage>, meta: &ChannelMetadata) -> Html {
+        html! {
+        <>
+            <NavigationBar />
+            <Section>
+                <Identification cid={meta.identity.link} />
+                <Container>
+                    <CreateContent cid={ctx.props().cid} />
+                    {
+                        self.content.iter().map(|&cid| {
+                            html! {
+                                <Thumbnail {cid} />
+                            }
+                        }).collect::<Html>()
+                    }
+                </Container>
+            </Section>
+        </>
+        }
+    }
+
+    fn render_no_channel(&self) -> Html {
+        html! {
+        <>
+            <NavigationBar />
+            <Searching />
+        </>
+        }
+    }
+
     fn on_channel_update(&mut self, ctx: &Context<Self>, metadata: ChannelMetadata) -> bool {
         if let Some(index) = metadata.content_index {
             self.content.clear();
@@ -121,7 +166,7 @@ impl ChannelPage {
 
         self.metadata = Some(metadata);
 
-        false
+        true
     }
 
     fn on_channel_content(&mut self, _ctx: &Context<ChannelPage>, cid: Cid) -> bool {
@@ -132,34 +177,6 @@ impl ChannelPage {
         }
 
         true
-    }
-
-    fn render_channel(&self, meta: &ChannelMetadata) -> Html {
-        html! {
-        <>
-            <NavigationBar />
-            <Section>
-                <Container>
-                    { "Channel" }
-                    <Identification cid={meta.identity.link} />
-                    { "Content" }
-                    {
-                        self.content.iter().map(|&cid| {
-                            html! {
-                                <Thumbnail {cid} />
-                            }
-                        }).collect::<Html>()
-                    }
-                </Container>
-            </Section>
-        </>
-        }
-    }
-
-    fn render_no_channel(&self) -> Html {
-        html! {
-            <Searching />
-        }
     }
 }
 

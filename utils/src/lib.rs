@@ -1,5 +1,6 @@
 #![cfg(target_arch = "wasm32")]
 
+pub mod defluencer;
 pub mod follows;
 pub mod identity;
 pub mod ipfs;

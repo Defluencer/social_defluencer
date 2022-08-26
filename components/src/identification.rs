@@ -6,11 +6,12 @@ use gloo_console::error;
 
 use utils::ipfs::IPFSContext;
 
-use ybc::Block;
-
+use ybc::{ImageSize, Level, LevelItem, LevelRight};
 use yew::{platform::spawn_local, prelude::*};
 
 use linked_data::identity::Identity;
+
+use crate::image::Image;
 
 #[derive(Properties, PartialEq)]
 pub struct Props {
@@ -65,14 +66,33 @@ impl Component for Identification {
 
     fn view(&self, _ctx: &Context<Self>) -> Html {
         match &self.identity {
-            Some(identity) => html! {
-                <Block>
-                    <span class="icon-text">
-                        <span class="icon"><i class="fas fa-user"></i></span>
-                        <span> { &identity.display_name } </span>
-                    </span>
-                </Block>
-            },
+            Some(identity) => {
+                let img = if let Some(avatar) = identity.avatar {
+                    html! {
+                    <LevelItem>
+                        <ybc::Image size={ImageSize::Is64x64} >
+                            <Image cid={avatar.link} />
+                        </ybc::Image>
+                    </LevelItem>
+                    }
+                } else {
+                    html! {}
+                };
+
+                html! {
+                <Level>
+                    <LevelRight>
+                        {img}
+                        <LevelItem>
+                            <span class="icon-text">
+                                <span class="icon"><i class="fas fa-user"></i></span>
+                                <span> { &identity.display_name } </span>
+                            </span>
+                        </LevelItem>
+                    </LevelRight>
+                </Level>
+                }
+            }
             None => html! {
                 <span class="bulma-loader-mixin"></span>
             },
