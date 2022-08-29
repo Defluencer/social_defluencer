@@ -120,7 +120,7 @@ impl Component for App {
 
                 self.user_context = Some(context);
             }
-            _ => self.user_context = None,
+            _ => {}
         }
 
         // Get Channel at startup from saved value
@@ -149,7 +149,7 @@ impl Component for App {
                     }
                 }
             }),
-            _ => self.channel_context = None,
+            _ => {}
         }
 
         true

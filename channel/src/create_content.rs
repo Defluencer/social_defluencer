@@ -21,6 +21,7 @@ use web_sys::File as SysFile;
 #[derive(Properties, PartialEq)]
 pub struct Props {
     pub cid: Cid,
+    pub content_cb: Callback<Cid>,
 }
 
 pub struct CreateContent {
@@ -117,7 +118,7 @@ impl Component for CreateContent {
             Msg::Image(images) => self.on_images(images),
             Msg::Markdown(markdowns) => self.on_markdowns(markdowns),
             Msg::Video(cid_string) => self.on_video(&cid_string),
-            Msg::Result(cid) => self.on_result(cid),
+            Msg::Result(cid) => self.on_result(ctx, cid),
         }
     }
 
@@ -140,17 +141,26 @@ impl Component for CreateContent {
             <Level>
                 <LevelItem>
                     <Button onclick={self.video_modal_cb.clone()} >
-                        { "Video" }
+                        <span class="icon-text">
+                            <span class="icon"><i class="fa-solid fa-plus"></i></span>
+                            <span> { "Video" } </span>
+                        </span>
                     </Button>
                 </LevelItem>
                 <LevelItem>
                     <Button onclick={self.post_modal_cb.clone()} >
-                        { "Micro Post" }
+                        <span class="icon-text">
+                            <span class="icon"><i class="fa-solid fa-plus"></i></span>
+                            <span> { "Micro Post" } </span>
+                        </span>
                     </Button>
                 </LevelItem>
                 <LevelItem>
                     <Button onclick={self.article_modal_cb.clone()} >
-                        { "Article" }
+                        <span class="icon-text">
+                            <span class="icon"><i class="fa-solid fa-plus"></i></span>
+                            <span> { "Article" } </span>
+                        </span>
                     </Button>
                 </LevelItem>
             </Level>
@@ -200,6 +210,11 @@ impl CreateContent {
                 <Field label="Processed Video CID" >
                     <Control>
                         <Input name="video_cid" value="" update={self.video_cb.clone()} />
+                    </Control>
+                </Field>
+                <Field label="Image File" >
+                    <Control>
+                        <File name="image" files={self.images.clone()} update={self.image_cb.clone()} selector_label={"Choose an image..."} selector_icon={html!{<i class="fas fa-upload"></i>}} has_name={Some("image.jpg")} fullwidth=true />
                     </Control>
                 </Field>
             </section>
@@ -320,9 +335,11 @@ impl CreateContent {
         true
     }
 
-    fn on_result(&mut self, _cid: Cid) -> bool {
+    fn on_result(&mut self, ctx: &Context<Self>, cid: Cid) -> bool {
         self.loading = false;
         self.modal = Modals::None;
+
+        ctx.props().content_cb.emit(cid);
 
         true
     }

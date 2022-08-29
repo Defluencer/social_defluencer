@@ -53,7 +53,7 @@ impl Component for Thumbnail {
             let cid = ctx.props().cid;
 
             async move {
-                match ipfs.dag_get::<String, Media>(cid, None).await {
+                match ipfs.dag_get::<&str, Media>(cid, Some("/link")).await {
                     Ok(id) => cb.emit(id),
                     Err(e) => error!(&format!("{:#?}", e)),
                 }

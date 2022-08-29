@@ -51,11 +51,14 @@ pub struct ChannelPage {
     metadata: Option<ChannelMetadata>,
 
     content: VecDeque<Cid>,
+    content_cb: Callback<Cid>,
+    create_cb: Callback<Cid>,
 }
 
 pub enum Msg {
     Update(ChannelMetadata),
     Content(Cid),
+    Created(Cid),
 }
 
 impl Component for ChannelPage {
@@ -80,12 +83,17 @@ impl Component for ChannelPage {
             regis,
         ));
 
+        let content_cb = ctx.link().callback(Msg::Content);
+        let create_cb = ctx.link().callback(Msg::Created);
+
         Self {
             handle,
 
             metadata: None,
 
             content: Default::default(),
+            content_cb,
+            create_cb,
         }
     }
 
@@ -95,7 +103,8 @@ impl Component for ChannelPage {
 
         match msg {
             Msg::Update(metadata) => self.on_channel_update(ctx, metadata),
-            Msg::Content(cid) => self.on_channel_content(ctx, cid),
+            Msg::Content(cid) => self.on_older_content(cid),
+            Msg::Created(cid) => self.on_newer_content(cid),
         }
     }
 
@@ -125,11 +134,11 @@ impl ChannelPage {
             <Section>
                 <Identification cid={meta.identity.link} />
                 <Container>
-                    <CreateContent cid={ctx.props().cid} />
+                    <CreateContent cid={ctx.props().cid} content_cb={self.create_cb.clone()} />
                     {
-                        self.content.iter().map(|&cid| {
+                        self.content.iter().rev().map(|&cid| {
                             html! {
-                                <Thumbnail {cid} />
+                                <Thumbnail key={cid.to_string()} {cid} />
                             }
                         }).collect::<Html>()
                     }
@@ -159,7 +168,7 @@ impl ChannelPage {
 
             spawn_local(stream_content(
                 context.client.clone(),
-                ctx.link().callback(Msg::Content),
+                self.content_cb.clone(),
                 index,
             ));
         }
@@ -169,7 +178,17 @@ impl ChannelPage {
         true
     }
 
-    fn on_channel_content(&mut self, _ctx: &Context<ChannelPage>, cid: Cid) -> bool {
+    fn on_older_content(&mut self, cid: Cid) -> bool {
+        if self.content.len() < 50 {
+            self.content.push_front(cid);
+
+            return true;
+        }
+
+        false
+    }
+
+    fn on_newer_content(&mut self, cid: Cid) -> bool {
         self.content.push_back(cid);
 
         if self.content.len() > 50 {

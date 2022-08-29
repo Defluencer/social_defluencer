@@ -29,7 +29,7 @@ const MAX_CRAWL_RESULT: usize = 50;
 
 #[derive(Properties, PartialEq)]
 pub struct Props {
-    /// Media Content Cid
+    /// signed link to Media Content Cid
     pub cid: Cid,
 }
 
@@ -123,10 +123,10 @@ impl Component for Commentary {
 async fn get_local_follows(ipfs: IpfsService, cid: Cid, follows: HashSet<IPLDLink>) -> Msg {
     let pool: FuturesUnordered<_> = follows
         .into_iter()
-        .map(|ipld| ipfs.dag_get::<&str, Identity>(ipld.link, None))
+        .map(|ipld| ipfs.dag_get::<&str, Identity>(ipld.link, Some("/link")))
         .collect();
 
-    pool.push(ipfs.dag_get::<&str, Identity>(cid, Some("/identity")));
+    pool.push(ipfs.dag_get::<&str, Identity>(cid, Some("/link/identity")));
 
     let vec = pool
         .filter_map(|result| async move {
