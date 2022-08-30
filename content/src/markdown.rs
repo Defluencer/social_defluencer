@@ -43,6 +43,7 @@ pub fn render_markdown(src: &str) -> Html {
 
     let mut options = Options::empty();
     options.insert(Options::ENABLE_TABLES);
+    options.insert(Options::ENABLE_HEADING_ATTRIBUTES);
 
     for ev in Parser::new_ext(src, options) {
         match ev {

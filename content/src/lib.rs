@@ -18,6 +18,7 @@ use cid::Cid;
 
 #[derive(Properties, PartialEq)]
 pub struct ContentPageProps {
+    /// Signed Link to Media Cid
     pub cid: Cid,
 }
 
@@ -27,8 +28,6 @@ pub struct ContentPageProps {
 #[function_component(ContentPage)]
 pub fn content_page(props: &ContentPageProps) -> Html {
     let cid = props.cid;
-
-    //TODO Exporting content as CARs
 
     html! {
     <>

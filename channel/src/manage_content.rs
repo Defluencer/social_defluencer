@@ -20,18 +20,22 @@ use web_sys::File as SysFile;
 
 #[derive(Properties, PartialEq)]
 pub struct Props {
+    /// Channel Address
     pub cid: Cid,
+
     pub content_cb: Callback<Cid>,
+
+    pub remove_cb: Callback<Cid>,
 }
 
-pub struct CreateContent {
+pub struct ManageContent {
     video_modal_cb: Callback<MouseEvent>,
     post_modal_cb: Callback<MouseEvent>,
     article_modal_cb: Callback<MouseEvent>,
     modal: Modals,
     close_modal_cb: Callback<MouseEvent>,
 
-    create_cb: Callback<MouseEvent>,
+    manage_cb: Callback<MouseEvent>,
 
     title: String,
     title_cb: Callback<String>,
@@ -42,8 +46,10 @@ pub struct CreateContent {
     markdowns: Vec<SysFile>,
     makdown_cb: Callback<Vec<SysFile>>,
 
-    video: Cid,
-    video_cb: Callback<String>,
+    form_cid: Cid,
+    form_cid_cb: Callback<String>,
+
+    remove_modal_cb: Callback<MouseEvent>,
 
     loading: bool,
     disabled: bool,
@@ -55,6 +61,7 @@ pub enum Modals {
     MicroPost,
     Article,
     Video,
+    Remove,
 }
 
 pub enum Msg {
@@ -64,11 +71,11 @@ pub enum Msg {
     Title(String),
     Image(Vec<SysFile>),
     Markdown(Vec<SysFile>),
-    Video(String),
+    FormCid(String),
     Result(Cid),
 }
 
-impl Component for CreateContent {
+impl Component for ManageContent {
     type Message = Msg;
     type Properties = Props;
 
@@ -78,11 +85,12 @@ impl Component for CreateContent {
         let article_modal_cb = ctx.link().callback(|_| Msg::Modal(Modals::Article));
         let close_modal_cb = ctx.link().callback(|_| Msg::CloseModal);
         let create_cb = ctx.link().callback(|_| Msg::Create);
+        let remove_modal_cb = ctx.link().callback(|_| Msg::Modal(Modals::Remove));
 
         let title_cb = ctx.link().callback(Msg::Title);
         let img_file_cb = ctx.link().callback(Msg::Image);
         let md_file_cb = ctx.link().callback(Msg::Markdown);
-        let video_cb = ctx.link().callback(Msg::Video);
+        let form_cid_cb = ctx.link().callback(Msg::FormCid);
 
         Self {
             video_modal_cb,
@@ -100,10 +108,13 @@ impl Component for CreateContent {
             markdowns: vec![],
             makdown_cb: md_file_cb,
 
-            video: Cid::default(),
-            video_cb,
+            form_cid: Cid::default(),
+            form_cid_cb,
 
-            create_cb,
+            manage_cb: create_cb,
+
+            remove_modal_cb,
+
             loading: false,
             disabled: false,
         }
@@ -113,28 +124,16 @@ impl Component for CreateContent {
         match msg {
             Msg::Modal(modal) => self.on_modal(modal),
             Msg::CloseModal => self.close_modal(),
-            Msg::Create => self.on_create(ctx),
+            Msg::Create => self.on_manage(ctx),
             Msg::Title(title) => self.on_title(title),
             Msg::Image(images) => self.on_images(images),
             Msg::Markdown(markdowns) => self.on_markdowns(markdowns),
-            Msg::Video(cid_string) => self.on_video(&cid_string),
+            Msg::FormCid(cid_string) => self.on_form_cid(&cid_string),
             Msg::Result(cid) => self.on_result(ctx, cid),
         }
     }
 
-    fn view(&self, ctx: &Context<Self>) -> Html {
-        if ctx
-            .link()
-            .context::<UserContext>(Callback::noop())
-            .is_none()
-            || ctx
-                .link()
-                .context::<ChannelContext>(Callback::noop())
-                .is_none()
-        {
-            return html!();
-        }
-
+    fn view(&self, _ctx: &Context<Self>) -> Html {
         html! {
         <Box>
             { self.render_modal() }
@@ -163,13 +162,21 @@ impl Component for CreateContent {
                         </span>
                     </Button>
                 </LevelItem>
+                <LevelItem>
+                    <Button onclick={self.remove_modal_cb.clone()} >
+                        <span class="icon-text">
+                            <span class="icon"><i class="fa-solid fa-minus"></i></span>
+                            <span> { "Remove" } </span>
+                        </span>
+                    </Button>
+                </LevelItem>
             </Level>
         </Box>
         }
     }
 }
 
-impl CreateContent {
+impl ManageContent {
     fn render_modal(&self) -> Html {
         let modal_card_body = match self.modal {
             Modals::MicroPost => html! {
@@ -209,12 +216,21 @@ impl CreateContent {
                 </Field>
                 <Field label="Processed Video CID" >
                     <Control>
-                        <Input name="video_cid" value="" update={self.video_cb.clone()} />
+                        <Input name="video_cid" value="" update={self.form_cid_cb.clone()} />
                     </Control>
                 </Field>
                 <Field label="Image File" >
                     <Control>
                         <File name="image" files={self.images.clone()} update={self.image_cb.clone()} selector_label={"Choose an image..."} selector_icon={html!{<i class="fas fa-upload"></i>}} has_name={Some("image.jpg")} fullwidth=true />
+                    </Control>
+                </Field>
+            </section>
+            },
+            Modals::Remove => html! {
+            <section class="modal-card-body">
+                <Field label="Content CID" >
+                    <Control>
+                        <Input name="cid" value="" update={self.form_cid_cb.clone()} />
                     </Control>
                 </Field>
             </section>
@@ -228,15 +244,15 @@ impl CreateContent {
             <div class="modal-card">
                 <header class="modal-card-head">
                     <p class="modal-card-title">
-                        { "New Content" }
+                        { "Manage Content" }
                     </p>
                     <button class="delete" aria-label="close" onclick={self.close_modal_cb.clone()} >
                     </button>
                 </header>
                 { modal_card_body }
                 <footer class="modal-card-foot">
-                    <Button onclick={self.create_cb.clone()} loading={self.loading} disabled={self.disabled} >
-                        { "Create New Content" }
+                    <Button onclick={self.manage_cb.clone()} loading={self.loading} disabled={self.disabled} >
+                        if self.modal != Modals::Remove { {"Create"} } else { {"Remove"} }
                     </Button>
                     <Button onclick={self.close_modal_cb.clone()}>
                         { "Cancel" }
@@ -247,7 +263,7 @@ impl CreateContent {
         }
     }
 
-    fn on_create(&mut self, ctx: &Context<Self>) -> bool {
+    fn on_manage(&mut self, ctx: &Context<Self>) -> bool {
         let (context, _) = ctx
             .link()
             .context::<UserContext>(Callback::noop())
@@ -283,8 +299,13 @@ impl CreateContent {
                 user,
                 channel,
                 self.title.clone(),
-                self.video,
+                self.form_cid,
                 self.images.pop().unwrap(),
+                ctx.link().callback(Msg::Result),
+            )),
+            Modals::Remove => spawn_local(remove_content(
+                channel,
+                self.form_cid,
                 ctx.link().callback(Msg::Result),
             )),
             Modals::None => return false,
@@ -305,8 +326,8 @@ impl CreateContent {
         true
     }
 
-    fn on_video(&mut self, cid_str: &str) -> bool {
-        self.video = match Cid::try_from(cid_str) {
+    fn on_form_cid(&mut self, cid_str: &str) -> bool {
+        self.form_cid = match Cid::try_from(cid_str) {
             Ok(cid) => cid,
             Err(e) => {
                 error!(&format!("{:#?}", e));
@@ -336,10 +357,14 @@ impl CreateContent {
     }
 
     fn on_result(&mut self, ctx: &Context<Self>, cid: Cid) -> bool {
+        match self.modal {
+            Modals::None => return false,
+            Modals::Remove => ctx.props().remove_cb.emit(cid),
+            _ => ctx.props().content_cb.emit(cid),
+        }
+
         self.loading = false;
         self.modal = Modals::None;
-
-        ctx.props().content_cb.emit(cid);
 
         true
     }
@@ -349,6 +374,7 @@ impl CreateContent {
             self.disabled = true;
         } else {
             self.images = images;
+            self.disabled = false;
         }
 
         true
@@ -359,11 +385,14 @@ impl CreateContent {
             self.disabled = true;
         } else {
             self.markdowns = markdowns;
+            self.disabled = false;
         }
 
         true
     }
 }
+
+//TODO channel.add_content take 2 mins maybe best to do it in the background.
 
 async fn create_micro_post(
     user: User<EthereumSigner>,
@@ -425,6 +454,16 @@ async fn create_article(
 
     match channel.add_content(cid).await {
         Ok(cid) => callback.emit(cid),
+        Err(e) => error!(&format!("{:#?}", e)),
+    }
+}
+
+async fn remove_content(channel: Channel<LocalUpdater>, cid: Cid, callback: Callback<Cid>) {
+    match channel.remove_content(cid).await {
+        Ok(option) => match option {
+            Some(cid) => callback.emit(cid),
+            None => {}
+        },
         Err(e) => error!(&format!("{:#?}", e)),
     }
 }

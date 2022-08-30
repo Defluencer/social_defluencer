@@ -1,8 +1,8 @@
 #![cfg(target_arch = "wasm32")]
 
-mod create_content;
+mod manage_content;
 
-use create_content::CreateContent;
+use manage_content::ManageContent;
 
 use std::collections::VecDeque;
 
@@ -27,7 +27,10 @@ use linked_data::{
     types::{IPLDLink, IPNSAddress},
 };
 
-use utils::ipfs::IPFSContext;
+use utils::{
+    defluencer::{ChannelContext, UserContext},
+    ipfs::IPFSContext,
+};
 
 use ybc::{Container, Section};
 
@@ -37,6 +40,7 @@ use cid::Cid;
 
 #[derive(Properties, PartialEq)]
 pub struct Props {
+    /// Channel Address
     pub cid: Cid,
 }
 
@@ -53,12 +57,17 @@ pub struct ChannelPage {
     content: VecDeque<Cid>,
     content_cb: Callback<Cid>,
     create_cb: Callback<Cid>,
+
+    other_remove_cb: Callback<Cid>,
+
+    channel: bool,
 }
 
 pub enum Msg {
     Update(ChannelMetadata),
     Content(Cid),
     Created(Cid),
+    Remove(Cid),
 }
 
 impl Component for ChannelPage {
@@ -86,6 +95,22 @@ impl Component for ChannelPage {
         let content_cb = ctx.link().callback(Msg::Content);
         let create_cb = ctx.link().callback(Msg::Created);
 
+        let mut channel = false;
+
+        if ctx
+            .link()
+            .context::<UserContext>(Callback::noop())
+            .is_some()
+        {
+            if let Some((context, _)) = ctx.link().context::<ChannelContext>(Callback::noop()) {
+                if context.channel.get_address() == ctx.props().cid.into() {
+                    channel = true;
+                }
+            }
+        }
+
+        let other_remove_cb = ctx.link().callback(Msg::Remove);
+
         Self {
             handle,
 
@@ -94,6 +119,10 @@ impl Component for ChannelPage {
             content: Default::default(),
             content_cb,
             create_cb,
+
+            other_remove_cb,
+
+            channel,
         }
     }
 
@@ -105,6 +134,7 @@ impl Component for ChannelPage {
             Msg::Update(metadata) => self.on_channel_update(ctx, metadata),
             Msg::Content(cid) => self.on_older_content(cid),
             Msg::Created(cid) => self.on_newer_content(cid),
+            Msg::Remove(cid) => self.on_remove_content(cid),
         }
     }
 
@@ -134,7 +164,10 @@ impl ChannelPage {
             <Section>
                 <Identification cid={meta.identity.link} />
                 <Container>
-                    <CreateContent cid={ctx.props().cid} content_cb={self.create_cb.clone()} />
+                    if self.channel
+                    {
+                        <ManageContent cid={ctx.props().cid} content_cb={self.create_cb.clone()} remove_cb={self.other_remove_cb.clone()} />
+                    }
                     {
                         self.content.iter().rev().map(|&cid| {
                             html! {
@@ -196,6 +229,16 @@ impl ChannelPage {
         }
 
         true
+    }
+
+    fn on_remove_content(&mut self, cid: Cid) -> bool {
+        if let Some(index) = self.content.iter().position(|&item| item == cid) {
+            self.content.remove(index);
+
+            return true;
+        }
+
+        false
     }
 }
 

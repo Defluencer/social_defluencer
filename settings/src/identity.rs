@@ -418,10 +418,18 @@ impl IdentitySettings {
     }
 
     fn on_delete(&mut self, cid: Cid, _ctx: &Context<Self>) -> bool {
-        let _identity = match self.identity_map.remove(&cid) {
-            Some(id) => id,
-            None => return false,
-        };
+        /* let (context, _) = ctx
+            .link()
+            .context::<IPFSContext>(Callback::noop())
+            .expect("IPFS Context");
+        let ipfs = context.client;
+
+        spawn_local({
+            async move {
+
+                //TODO remove keys from local node
+            }
+        }); */
 
         if self.current_id == Some(cid.into()) {
             self.current_id = None;
@@ -435,7 +443,7 @@ impl IdentitySettings {
             }
         }
 
-        //TODO remove local node of the keys and unpin the identity if needed
+        self.identity_map.remove(&cid);
 
         true
     }
@@ -471,7 +479,7 @@ async fn create_identity(
     };
 
     if channel {
-        let (channel, cid) = match Channel::create_local(ipfs, cid).await {
+        let (channel, cid) = match Channel::create_local(ipfs.clone(), cid).await {
             Ok(tuple) => tuple,
             Err(e) => {
                 error!(&format!("{:?}", e));

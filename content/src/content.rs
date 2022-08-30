@@ -32,6 +32,7 @@ use crate::{comment::Comment, md_renderer::Markdown};
 
 #[derive(Properties, PartialEq)]
 pub struct Props {
+    /// Signed link to media Cid
     pub cid: Cid,
 }
 
@@ -223,7 +224,7 @@ async fn get_content(ipfs: IpfsService, callback: Callback<(Media, Vec<u8>)>, ci
         return;
     }
 
-    //TODO use hash???
+    //use public key hash???
     let pk = signed_link.public_key;
 
     let media = match ipfs

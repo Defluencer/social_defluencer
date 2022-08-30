@@ -79,6 +79,7 @@ struct LiveStream {
 
 #[derive(Properties, PartialEq)]
 pub struct Props {
+    /// Signed Link to Media Cid
     pub cid: Cid,
 }
 
@@ -133,13 +134,13 @@ impl Component for VideoPlayer {
 
         let ipfs = context.client;
 
-        spawn_local({
+        /* spawn_local({
             let ipfs = ipfs.clone();
             let cb = ctx.link().callback(Msg::Settings);
             let cid = ctx.props().cid;
 
             async move {
-                match ipfs.dag_get::<&str, LiveOrVideo>(cid, None).await {
+                match ipfs.dag_get::<&str, LiveOrVideo>(cid, Some("/link")).await {
                     Ok(either) => cb.emit(either.inner),
                     Err(e) => {
                         error!(&format!("{:#?}", e));
@@ -147,7 +148,7 @@ impl Component for VideoPlayer {
                     }
                 }
             }
-        });
+        }); */
 
         let ema = ExponentialMovingAverage::new();
 
@@ -324,12 +325,29 @@ impl VideoPlayer {
 
                 Either::Left(live)
             }
-            Either::Right(metadata) => Either::Right(metadata),
+            Either::Right(metadata) => {
+                self.media_source.set_duration(metadata.duration);
+
+                spawn_local({
+                    let ipfs = self.ipfs.clone();
+                    let cb = ctx.link().callback(Msg::SetupNode);
+                    let cid = metadata.video.link;
+
+                    async move {
+                        match ipfs.dag_get::<&str, Setup>(cid, Some(SETUP_PATH)).await {
+                            Ok(setup) => cb.emit(setup),
+                            Err(e) => error!(&format!("{:#?}", e)),
+                        }
+                    }
+                });
+
+                Either::Right(metadata)
+            }
         };
 
         self.player_type = Some(this);
 
-        true
+        false
     }
 
     /// Callback when MediaSource is linked to video element.
@@ -340,22 +358,21 @@ impl VideoPlayer {
         self.media_source.set_onsourceopen(None);
         self.source_open_closure = None;
 
-        if let Some(Either::Right(metadata)) = &self.player_type {
-            self.media_source.set_duration(metadata.duration);
+        spawn_local({
+            let ipfs = self.ipfs.clone();
+            let cb = ctx.link().callback(Msg::Settings);
+            let cid = ctx.props().cid;
 
-            spawn_local({
-                let ipfs = self.ipfs.clone();
-                let cb = ctx.link().callback(Msg::SetupNode);
-                let cid = metadata.video.link;
-
-                async move {
-                    match ipfs.dag_get::<&str, Setup>(cid, Some(SETUP_PATH)).await {
-                        Ok(setup) => cb.emit(setup),
-                        Err(e) => error!(&format!("{:#?}", e)),
+            async move {
+                match ipfs.dag_get::<&str, LiveOrVideo>(cid, Some("/link")).await {
+                    Ok(either) => cb.emit(either.inner),
+                    Err(e) => {
+                        error!(&format!("{:#?}", e));
+                        return;
                     }
                 }
-            })
-        }
+            }
+        });
     }
 
     /// Callback when GossipSub receive an update.

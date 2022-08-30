@@ -26,6 +26,7 @@ use crate::{
 
 #[derive(Properties, PartialEq)]
 pub struct Props {
+    /// Signed link to Media Content Cid
     pub cid: Cid,
 }
 
