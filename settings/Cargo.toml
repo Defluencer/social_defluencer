@@ -18,7 +18,7 @@ cid = { version = "0.8", default-features = false, features = ["std"] }
 gloo-console = { version = "0.2", default-features = false, features = [] }
 gloo-storage = { version ="0.2", default-features = false, features = [] }
 heck = { version = "0.4", default-features = false, features = [] }
-hex = { version = "0.4", default-features = false, features = [] }
+
 wasm-bindgen = { version = "0.2.82", default-features = false, features = [] }
 wasm-bindgen-futures = { version = "0.4", default-features = false, features = [] }
 web-sys = { version = "0.3.59", default-features = false, features = [

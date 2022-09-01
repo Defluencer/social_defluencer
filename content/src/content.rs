@@ -39,11 +39,11 @@ pub struct Props {
 pub struct Content {
     media: Option<Media>,
     dt: String,
-    pk: Vec<u8>,
+    addr: String,
 }
 
 pub enum Msg {
-    Media((Media, Vec<u8>)),
+    Media((Media, String)),
 }
 
 impl Component for Content {
@@ -68,7 +68,7 @@ impl Component for Content {
         Self {
             media: None,
             dt: String::new(),
-            pk: Vec::new(),
+            addr: String::new(),
         }
     }
 
@@ -77,10 +77,10 @@ impl Component for Content {
         info!("Content Update");
 
         match msg {
-            Msg::Media((media, pk)) => {
+            Msg::Media((media, addr)) => {
                 self.dt = timestamp_to_datetime(media.user_timestamp());
                 self.media = Some(media);
-                self.pk = pk;
+                self.addr = addr;
 
                 true
             }
@@ -119,7 +119,7 @@ impl Content {
         <Box>
             <ybc::Media>
                 <MediaLeft>
-                    <Identification cid={blog.identity.link} />
+                    <Identification cid={blog.identity.link} addr={self.addr.clone()} />
                     <Block>
                         <span class="icon-text">
                             <span class="icon"><i class="fas fa-clock"></i></span>
@@ -152,7 +152,7 @@ impl Content {
             <Level>
                 <LevelLeft>
                     <LevelItem>
-                        <Identification cid={article.identity.link} />
+                        <Identification cid={article.identity.link} addr={self.addr.clone()} />
                     </LevelItem>
                     <LevelItem>
                         <span class="icon-text">
@@ -184,7 +184,7 @@ impl Content {
             <Level>
                 <LevelLeft>
                     <LevelItem>
-                        <Identification cid={video.identity.link} />
+                        <Identification cid={video.identity.link} addr={self.addr.clone()} />
                     </LevelItem>
                     <LevelItem>
                         <span class="icon-text">
@@ -210,7 +210,7 @@ impl Content {
     }
 }
 
-async fn get_content(ipfs: IpfsService, callback: Callback<(Media, Vec<u8>)>, cid: Cid) {
+async fn get_content(ipfs: IpfsService, callback: Callback<(Media, String)>, cid: Cid) {
     let signed_link = match ipfs.dag_get::<&str, SignedLink>(cid, None).await {
         Ok(dag) => dag,
         Err(e) => {
@@ -224,8 +224,7 @@ async fn get_content(ipfs: IpfsService, callback: Callback<(Media, Vec<u8>)>, ci
         return;
     }
 
-    //use public key hash???
-    let pk = signed_link.public_key;
+    let addr = signed_link.get_address();
 
     let media = match ipfs
         .dag_get::<&str, Media>(signed_link.link.link, None)
@@ -238,5 +237,5 @@ async fn get_content(ipfs: IpfsService, callback: Callback<(Media, Vec<u8>)>, ci
         }
     };
 
-    callback.emit((media, pk));
+    callback.emit((media, addr));
 }

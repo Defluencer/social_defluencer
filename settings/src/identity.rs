@@ -10,6 +10,7 @@ use defluencer::channel::Channel;
 
 use utils::{
     defluencer::{ChannelContext, UserContext},
+    display_address,
     identity::{
         clear_current_identity, get_current_identity, get_identities, set_current_identity,
         set_identities,
@@ -31,7 +32,10 @@ use gloo_console::{error, info};
 
 use wasm_bindgen_futures::spawn_local;
 
-use linked_data::{identity::Identity, types::IPLDLink};
+use linked_data::{
+    identity::Identity,
+    types::{Address, IPLDLink},
+};
 
 use ipfs_api::{responses::Codec, IpfsService};
 
@@ -41,9 +45,22 @@ pub struct Props {
     pub channel_cb: Callback<ChannelContext>,
 }
 
+#[derive(PartialEq)]
+pub enum Modals {
+    Create,
+    Delete,
+    None,
+}
+
+/// Assumes that IPFS & Web3 Context are available
 pub struct IdentitySettings {
-    modal: bool,
-    modal_cb: Callback<MouseEvent>,
+    modal: Modals,
+    create_modal_cb: Callback<MouseEvent>,
+
+    delete_cid: Option<Cid>,
+    confirm_delete_cb: Callback<MouseEvent>,
+
+    close_modal_cb: Callback<MouseEvent>,
 
     current_id: Option<IPLDLink>,
     identity_map: HashMap<Cid, Identity>,
@@ -62,7 +79,7 @@ pub struct IdentitySettings {
 }
 
 pub enum Msg {
-    Modal,
+    Modal(Modals),
     SetID(Cid),
     DeleteID(Cid),
     Name(String),
@@ -72,6 +89,8 @@ pub enum Msg {
 
     IdentityCreated((Cid, Identity)),
     GetIDs((Cid, Identity)),
+
+    ConfirmDelete,
 }
 
 impl Component for IdentitySettings {
@@ -108,15 +127,25 @@ impl Component for IdentitySettings {
             });
         }
 
-        let modal_cb = ctx.link().callback(|_| Msg::Modal);
+        let create_modal_cb = ctx.link().callback(|_| Msg::Modal(Modals::Create));
+
+        let confirm_delete_cb = ctx.link().callback(|_| Msg::ConfirmDelete);
+
+        let close_modal_cb = ctx.link().callback(|_| Msg::Modal(Modals::None));
+
         let name_cb = ctx.link().callback(Msg::Name);
         let channel_cb = ctx.link().callback(Msg::Channel);
         let file_cb = ctx.link().callback(Msg::Files);
         let identity_cb = ctx.link().callback(|_| Msg::Create);
 
         Self {
-            modal: false,
-            modal_cb,
+            modal: Modals::None,
+            create_modal_cb,
+
+            delete_cid: None,
+            confirm_delete_cb,
+
+            close_modal_cb,
 
             current_id,
             identity_map: HashMap::new(),
@@ -140,7 +169,7 @@ impl Component for IdentitySettings {
         info!("Identity Setting Update");
 
         match msg {
-            Msg::Modal => self.on_modal(),
+            Msg::Modal(modals) => self.on_modal(modals),
             Msg::SetID(cid) => self.on_set_identity(cid, ctx),
             Msg::Name(name) => self.on_name(name),
             Msg::Channel(channel) => self.on_channel(channel),
@@ -148,7 +177,8 @@ impl Component for IdentitySettings {
             Msg::Create => self.on_create(ctx),
             Msg::IdentityCreated((cid, identity)) => self.on_identity_created(ctx, cid, identity),
             Msg::GetIDs((cid, identity)) => self.on_ids(cid, identity),
-            Msg::DeleteID(cid) => self.on_delete(cid, ctx),
+            Msg::DeleteID(cid) => self.on_delete(cid),
+            Msg::ConfirmDelete => self.on_confirm_delete(ctx),
         }
     }
 
@@ -162,9 +192,10 @@ impl Component for IdentitySettings {
                 <Subtitle >
                     { "Identities" }
                 </Subtitle>
-                { self.render_modal() }
+                { self.render_create_modal() }
+                { self.render_delete_modal() }
                 { self.render_identities(ctx) }
-                <Button onclick={ self.modal_cb.clone() } >
+                <Button onclick={ self.create_modal_cb.clone() } >
                     { "Create New Identity" }
                 </Button>
             </Container>
@@ -174,25 +205,25 @@ impl Component for IdentitySettings {
 }
 
 impl IdentitySettings {
-    fn render_modal(&self) -> Html {
+    fn render_create_modal(&self) -> Html {
         html! {
-        <div class= { if self.modal { "modal is-active" } else { "modal" } } >
+        <div class= { if self.modal == Modals::Create { "modal is-active" } else { "modal" } } >
             <div class="modal-background"></div>
             <div class="modal-card">
                 <header class="modal-card-head">
                     <p class="modal-card-title">
-                        { "New Identity" }
+                        { "Identity" }
                     </p>
-                    <button class="delete" aria-label="close" onclick={self.modal_cb.clone()} >
+                    <button class="delete" aria-label="close" onclick={self.close_modal_cb.clone()} >
                     </button>
                 </header>
                 <section class="modal-card-body">
-                    <Field label="Display Name" >
+                    <Field label="Display name" >
                         <Control>
                             <Input name="name" value="" update={self.name_cb.clone()} />
                         </Control>
                     </Field>
-                    <Field label="Create Channel ?" >
+                    <Field label="Create a channel too?" help={"Takes ~2 minutes to publish a new channel"} >
                         <Control>
                             <Checkbox name="channel" checked=false update={self.channel_cb.clone()} />
                         </Control>
@@ -205,9 +236,37 @@ impl IdentitySettings {
                 </section>
                 <footer class="modal-card-foot">
                     <Button onclick={self.identity_cb.clone()} loading={self.loading} disabled={self.files.is_empty()} >
-                        { "Create New identity" }
+                        { "Create" }
                     </Button>
-                    <Button onclick={self.modal_cb.clone()}>
+                    <Button onclick={self.close_modal_cb.clone()}>
+                        { "Cancel" }
+                    </Button>
+                </footer>
+            </div>
+        </div>
+        }
+    }
+
+    fn render_delete_modal(&self) -> Html {
+        html! {
+        <div class= { if self.modal == Modals::Delete { "modal is-active" } else { "modal" } } >
+            <div class="modal-background"></div>
+            <div class="modal-card">
+                <header class="modal-card-head">
+                    <p class="modal-card-title">
+                        { "Identity" }
+                    </p>
+                    <button class="delete" aria-label="close" onclick={self.close_modal_cb.clone()} >
+                    </button>
+                </header>
+                <section class="modal-card-body">
+                   { "Are you should you want to delete this identity?" }
+                </section>
+                <footer class="modal-card-foot">
+                    <Button onclick={self.confirm_delete_cb.clone()} >
+                        { "Delete" }
+                    </Button>
+                    <Button onclick={self.close_modal_cb.clone()}>
                         { "Cancel" }
                     </Button>
                 </footer>
@@ -311,7 +370,7 @@ impl IdentitySettings {
     /// Callback when a new identity was created
     fn on_identity_created(&mut self, ctx: &Context<Self>, cid: Cid, identity: Identity) -> bool {
         self.loading = false;
-        self.modal = false;
+        self.modal = Modals::None;
 
         let mut id_list = get_identities().unwrap_or_default();
         id_list.insert(cid.into());
@@ -353,8 +412,12 @@ impl IdentitySettings {
         true
     }
 
-    fn on_modal(&mut self) -> bool {
-        self.modal = !self.modal;
+    fn on_modal(&mut self, modals: Modals) -> bool {
+        if self.modal == modals {
+            return false;
+        }
+
+        self.modal = modals;
 
         true
     }
@@ -394,12 +457,20 @@ impl IdentitySettings {
             .link()
             .context::<IPFSContext>(Callback::noop())
             .expect("IPFS Context");
+        let ipfs = context.client;
+
+        let (context, _) = ctx
+            .link()
+            .context::<Web3Context>(Callback::noop())
+            .expect("Web3 Context");
+        let addr = context.addr;
 
         spawn_local(create_identity(
-            context.client.clone(),
+            ipfs,
             self.files.pop().unwrap(),
             self.channel,
             self.name.clone(),
+            addr,
             ctx.link().callback(Msg::IdentityCreated),
         ));
 
@@ -417,19 +488,24 @@ impl IdentitySettings {
         true
     }
 
-    fn on_delete(&mut self, cid: Cid, _ctx: &Context<Self>) -> bool {
-        /* let (context, _) = ctx
-            .link()
-            .context::<IPFSContext>(Callback::noop())
-            .expect("IPFS Context");
-        let ipfs = context.client;
+    fn on_delete(&mut self, cid: Cid) -> bool {
+        if self.delete_cid == Some(cid) {
+            return false;
+        }
 
-        spawn_local({
-            async move {
+        self.delete_cid = Some(cid);
+        self.modal = Modals::Delete;
 
-                //TODO remove keys from local node
-            }
-        }); */
+        true
+    }
+
+    fn on_confirm_delete(&mut self, ctx: &Context<Self>) -> bool {
+        let cid = match self.delete_cid.take() {
+            Some(cid) => cid,
+            None => return false,
+        };
+
+        self.modal = Modals::None;
 
         if self.current_id == Some(cid.into()) {
             self.current_id = None;
@@ -443,7 +519,24 @@ impl IdentitySettings {
             }
         }
 
-        self.identity_map.remove(&cid);
+        if let Some(identity) = self.identity_map.remove(&cid) {
+            use heck::ToSnakeCase;
+            let key = identity.display_name.to_snake_case();
+
+            let (context, _) = ctx
+                .link()
+                .context::<IPFSContext>(Callback::noop())
+                .expect("IPFS Context");
+            let ipfs = context.client;
+
+            spawn_local({
+                async move {
+                    if let Err(e) = ipfs.key_rm(key).await {
+                        error!(&format!("{:?}", e));
+                    }
+                }
+            });
+        }
 
         true
     }
@@ -454,6 +547,7 @@ async fn create_identity(
     file: SysFile,
     channel: bool,
     display_name: String,
+    addr: Address,
     cb: Callback<(Cid, Identity)>,
 ) {
     let avatar = match defluencer::utils::add_image(&ipfs, file).await {
@@ -464,10 +558,13 @@ async fn create_identity(
         }
     };
 
+    let addr = Some(display_address(addr));
+
     let mut identity = Identity {
         display_name,
         avatar,
         channel_ipns: None,
+        addr,
     };
 
     let cid = match ipfs.dag_put(&identity, Codec::default()).await {

@@ -8,10 +8,10 @@ defluencer = { git = "https://github.com/Defluencer/rust-defluencer", branch = "
 linked-data = { git = "https://github.com/Defluencer/rust-defluencer", branch = "develop" }
 ipfs-api = { git = "https://github.com/Defluencer/rust-defluencer", branch = "develop" }
 
-
 chrono = { version = "0.4", default-features = false, features = [] }
 cid = { version = "0.8", default-features = false, features = ["std"] }
 gloo-console = { version = "0.2", default-features = false, features = [] }
 gloo-storage = { version ="0.2", default-features = false, features = [] }
+hex = { version = "0.4", default-features = false, features = [] }
 serde = { version = "1", default-features = false, features = ["std"] }
 web3 = { version = "0.18", default-features = false, features = ["wasm", "eip-1193"] }

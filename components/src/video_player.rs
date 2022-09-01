@@ -43,7 +43,7 @@ const BACK_BUFFER_LENGTH: f64 = 8.0;
 
 const SETUP_PATH: &str = "/time/hour/0/minute/0/second/0/video/setup";
 
-//TODO state machine implicit in the type system
+//Could build a state machine implicit in the type system instead of using callbacks
 
 enum MachineState {
     Load,

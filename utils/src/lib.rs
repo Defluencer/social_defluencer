@@ -31,3 +31,10 @@ pub fn timestamp_to_datetime(seconds: i64) -> String {
 
     local_d_t.format("%Y-%m-%d %H:%M:%S").to_string()
 }
+
+/// Take 20 bytes in hexa and prefix it with 0x
+pub fn display_address(addr: [u8; 20]) -> String {
+    let mut addr = hex::encode(addr);
+    addr.insert_str(0, "0x");
+    addr
+}

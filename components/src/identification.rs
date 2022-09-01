@@ -16,9 +16,8 @@ use crate::image::Image;
 #[derive(Properties, PartialEq)]
 pub struct Props {
     pub cid: Cid,
+    pub addr: Option<String>,
 }
-
-//TODO To prove content authenticity the signature must be valid and the identity (public key) must match
 
 pub struct Identification {
     identity: Option<Identity>,
@@ -64,19 +63,31 @@ impl Component for Identification {
         }
     }
 
-    fn view(&self, _ctx: &Context<Self>) -> Html {
+    fn view(&self, ctx: &Context<Self>) -> Html {
         match &self.identity {
             Some(identity) => {
-                let img = if let Some(avatar) = identity.avatar {
-                    html! {
+                let img = match identity.avatar {
+                    Some(avatar) => html! {
                     <LevelItem>
                         <ybc::Image size={ImageSize::Is64x64} >
                             <Image cid={avatar.link} />
                         </ybc::Image>
                     </LevelItem>
+                    },
+                    None => html!(),
+                };
+
+                let check = match (identity.addr.as_ref(), ctx.props().addr.as_ref()) {
+                    (Some(id_addr), Some(content_addr)) if content_addr == id_addr => {
+                        html! {
+                        <LevelItem>
+                            <span class="icon-text">
+                                <span class="icon"><i class="fa-solid fa-check"></i></span>
+                            </span>
+                        </LevelItem>
+                        }
                     }
-                } else {
-                    html! {}
+                    _ => html!(),
                 };
 
                 html! {
@@ -89,6 +100,7 @@ impl Component for Identification {
                                 <span> { &identity.display_name } </span>
                             </span>
                         </LevelItem>
+                        {check}
                     </LevelRight>
                 </Level>
                 }

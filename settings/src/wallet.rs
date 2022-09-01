@@ -6,7 +6,10 @@ use ybc::{Button, Container, Section, Subtitle};
 
 use yew::{context::ContextHandle, prelude::*};
 
-use utils::web3::{set_wallet_addr, Web3Context};
+use utils::{
+    display_address,
+    web3::{set_wallet_addr, Web3Context},
+};
 
 use wasm_bindgen_futures::spawn_local;
 
@@ -63,7 +66,7 @@ impl Component for WalletSettings {
 
                     async move {
                         if let Some(context) = Web3Context::new().await {
-                            set_wallet_addr(hex::encode(context.addr));
+                            set_wallet_addr(display_address(context.addr));
 
                             cb.emit(context);
                         }
@@ -103,7 +106,7 @@ impl WalletSettings {
             <div class="field">
                 <label class="label"> { "Wallet Address" } </label>
                 <div class="control is-expanded">
-                    <input name="wallet_addrs" value={hex::encode(addr)} class="input is-static" type="text" readonly=true />
+                    <input name="wallet_addrs" value={display_address(addr)} class="input is-static" type="text" readonly=true />
                 </div>
                 <p class="help"> { "Wallet address used by this App." } </p>
             </div>

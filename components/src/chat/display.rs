@@ -201,7 +201,7 @@ async fn user_verification(
     sig: Cid,
     callback: Callback<(Cid, ChatInfo)>,
 ) {
-    //TODO switch to DAG-JOSE
+    //TODO once Ledger app is built switch to DAG-JOSE
     /* let jws: JsonWebSignature = match ipfs.dag_get::<&str, RawJWS>(msg.signature.link, None).await {
         Ok(dag) => match dag.try_into() {
             Ok(dag) => dag,
