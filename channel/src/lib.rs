@@ -32,7 +32,7 @@ use utils::{
     ipfs::IPFSContext,
 };
 
-use ybc::{Container, Section};
+use ybc::{Button, Container, Section};
 
 use yew::{platform::spawn_local, prelude::*};
 
@@ -60,7 +60,10 @@ pub struct ChannelPage {
 
     other_remove_cb: Callback<Cid>,
 
-    channel: bool,
+    own_channel: bool,
+
+    follow_cb: Callback<MouseEvent>,
+    following: bool,
 }
 
 pub enum Msg {
@@ -68,6 +71,7 @@ pub enum Msg {
     Content(Cid),
     Created(Cid),
     Remove(Cid),
+    Follow,
 }
 
 impl Component for ChannelPage {
@@ -111,6 +115,14 @@ impl Component for ChannelPage {
 
         let other_remove_cb = ctx.link().callback(Msg::Remove);
 
+        let follow_cb = ctx.link().callback(|_| Msg::Follow);
+
+        let following = {
+            let list = utils::follows::get_follow_list();
+
+            list.contains(&ctx.props().cid.into())
+        };
+
         Self {
             handle,
 
@@ -122,7 +134,10 @@ impl Component for ChannelPage {
 
             other_remove_cb,
 
-            channel,
+            own_channel: channel,
+
+            follow_cb,
+            following,
         }
     }
 
@@ -135,6 +150,7 @@ impl Component for ChannelPage {
             Msg::Content(cid) => self.on_older_content(cid),
             Msg::Created(cid) => self.on_newer_content(cid),
             Msg::Remove(cid) => self.on_remove_content(cid),
+            Msg::Follow => self.on_follow(ctx),
         }
     }
 
@@ -163,8 +179,13 @@ impl ChannelPage {
             <NavigationBar />
             <Section>
                 <Identification cid={meta.identity.link} />
+                <Button onclick={self.follow_cb.clone()} >
+                {
+                    if self.following {"Unfollow"} else {"Follow"}
+                }
+                </Button>
                 <Container>
-                    if self.channel
+                    if self.own_channel
                     {
                         <ManageContent cid={ctx.props().cid} content_cb={self.create_cb.clone()} remove_cb={self.other_remove_cb.clone()} />
                     }
@@ -240,6 +261,22 @@ impl ChannelPage {
 
         false
     }
+
+    fn on_follow(&mut self, ctx: &Context<Self>) -> bool {
+        let mut list = utils::follows::get_follow_list();
+
+        if !self.following {
+            list.insert(ctx.props().cid.into());
+        } else {
+            list.remove(&ctx.props().cid.into());
+        }
+
+        utils::follows::set_follow_list(list);
+
+        self.following = !self.following;
+
+        true
+    }
 }
 
 async fn channel_subscribe(
@@ -259,16 +296,13 @@ async fn channel_subscribe(
             Ok(cid) => cid,
             Err(e) => {
                 error!(&format!("{:#?}", e));
-                return;
+                continue;
             }
         };
 
         match ipfs.dag_get::<&str, ChannelMetadata>(cid, None).await {
             Ok(dag) => callback.emit(dag),
-            Err(e) => {
-                error!(&format!("{:#?}", e));
-                return;
-            }
+            Err(e) => error!(&format!("{:#?}", e)),
         }
     }
 }
@@ -278,15 +312,15 @@ async fn stream_content(ipfs: IpfsService, callback: Callback<Cid>, index: IPLDL
 
     let mut stream = defluencer
         .stream_content_chronologically(index)
-        .boxed_local()
-        .take(50);
+        .take(50)
+        .boxed_local();
 
     while let Some(result) = stream.next().await {
         match result {
             Ok(cid) => callback.emit(cid),
             Err(e) => {
                 error!(&format!("{:#?}", e));
-                return;
+                continue;
             }
         }
     }

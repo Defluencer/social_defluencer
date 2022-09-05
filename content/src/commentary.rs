@@ -2,12 +2,9 @@
 
 use std::collections::HashSet;
 
-use futures_util::{stream::FuturesUnordered, StreamExt, TryStreamExt};
+use futures_util::{StreamExt, TryStreamExt};
 
-use linked_data::{
-    identity::Identity,
-    types::{IPLDLink, IPNSAddress},
-};
+use linked_data::types::IPNSAddress;
 
 use utils::{follows::get_follow_list, ipfs::IPFSContext};
 
@@ -34,14 +31,11 @@ pub struct Props {
 }
 
 pub struct Commentary {
-    ipfs: IpfsService,
-
     comments_set: HashSet<Cid>,
 }
 
 pub enum Msg {
     Comment(Cid),
-    Follows(Vec<Identity>),
 }
 
 impl Component for Commentary {
@@ -57,40 +51,26 @@ impl Component for Commentary {
             .context::<IPFSContext>(Callback::noop())
             .expect("IPFS Context");
 
-        let ipfs = context.client;
-
         let follows = get_follow_list();
 
-        ctx.link()
-            .send_future(get_local_follows(ipfs.clone(), ctx.props().cid, follows));
+        spawn_local(stream_comments(
+            context.client,
+            ctx.props().cid,
+            follows,
+            ctx.link().callback(Msg::Comment),
+        ));
 
         Self {
-            ipfs,
             comments_set: HashSet::default(),
         }
     }
 
-    fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
+    fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool {
         #[cfg(debug_assertions)]
         info!("Commentary Update");
 
         match msg {
             Msg::Comment(cid) => self.comments_set.insert(cid),
-            Msg::Follows(vec) => {
-                let addresses = vec
-                    .into_iter()
-                    .filter_map(|item| item.channel_ipns)
-                    .collect();
-
-                spawn_local(get_comment_cids(
-                    ctx.link().callback(Msg::Comment),
-                    self.ipfs.clone(),
-                    ctx.props().cid,
-                    addresses,
-                ));
-
-                false
-            }
         }
     }
 
@@ -120,40 +100,16 @@ impl Component for Commentary {
     }
 }
 
-async fn get_local_follows(ipfs: IpfsService, cid: Cid, follows: HashSet<IPLDLink>) -> Msg {
-    let pool: FuturesUnordered<_> = follows
-        .into_iter()
-        .map(|ipld| ipfs.dag_get::<&str, Identity>(ipld.link, Some("/link")))
-        .collect();
-
-    pool.push(ipfs.dag_get::<&str, Identity>(cid, Some("/link/identity")));
-
-    let vec = pool
-        .filter_map(|result| async move {
-            match result {
-                Ok(id) => Some(id),
-                Err(e) => {
-                    error!(&format!("{:#?}", e));
-                    None
-                }
-            }
-        })
-        .collect()
-        .await;
-
-    Msg::Follows(vec)
-}
-
-async fn get_comment_cids(
-    callback: Callback<Cid>,
+async fn stream_comments(
     ipfs: IpfsService,
     cid: Cid,
-    addresses: HashSet<IPNSAddress>,
+    follows: HashSet<IPNSAddress>,
+    callback: Callback<Cid>,
 ) {
     let defluencer = Defluencer::new(ipfs);
 
     defluencer
-        .streaming_web_crawl(addresses.into_iter())
+        .streaming_web_crawl(follows.into_iter())
         .take(MAX_CRAWL_RESULT)
         .map_ok(|(_, metadata)| metadata.comment_index)
         .try_filter_map(|option| async move {
