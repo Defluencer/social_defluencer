@@ -80,11 +80,9 @@ impl Component for Identification {
                 let check = match (identity.addr.as_ref(), ctx.props().addr.as_ref()) {
                     (Some(id_addr), Some(content_addr)) if content_addr == id_addr => {
                         html! {
-                        <LevelItem>
-                            <span class="icon-text">
-                                <span class="icon"><i class="fa-solid fa-check"></i></span>
-                            </span>
-                        </LevelItem>
+                        <span class="icon">
+                            <i class="fa-solid fa-check"></i>
+                        </span>
                         }
                     }
                     _ => html!(),
@@ -98,9 +96,9 @@ impl Component for Identification {
                             <span class="icon-text">
                                 <span class="icon"><i class="fas fa-user"></i></span>
                                 <span> { &identity.display_name } </span>
+                                {check}
                             </span>
                         </LevelItem>
-                        {check}
                     </LevelRight>
                 </Level>
                 }

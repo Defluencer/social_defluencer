@@ -32,7 +32,7 @@ use utils::{
     ipfs::IPFSContext,
 };
 
-use ybc::{Button, Container, Section};
+use ybc::{Box, Button, Container, Section};
 
 use yew::{platform::spawn_local, prelude::*};
 
@@ -45,6 +45,8 @@ pub struct Props {
 }
 
 //TODO If live, display video
+
+//TODO display all comments too
 
 /// social.defluencer.eth/#/channel/<IPNS_HERE>
 ///
@@ -86,6 +88,12 @@ impl Component for ChannelPage {
             .link()
             .context::<IPFSContext>(Callback::noop())
             .expect("IPFS Context");
+
+        spawn_local(get_channel(
+            context.client.clone(),
+            ctx.link().callback(Msg::Update),
+            ctx.props().cid.into(),
+        ));
 
         let (handle, regis) = AbortHandle::new_pair();
 
@@ -192,7 +200,9 @@ impl ChannelPage {
                     {
                         self.content.iter().rev().map(|&cid| {
                             html! {
+                            <Box>
                                 <Thumbnail key={cid.to_string()} {cid} />
+                            </Box>
                             }
                         }).collect::<Html>()
                     }
@@ -212,6 +222,10 @@ impl ChannelPage {
     }
 
     fn on_channel_update(&mut self, ctx: &Context<Self>, metadata: ChannelMetadata) -> bool {
+        if Some(&metadata) == self.metadata.as_ref() {
+            return false;
+        }
+
         if let Some(index) = metadata.content_index {
             self.content.clear();
 
@@ -279,6 +293,21 @@ impl ChannelPage {
     }
 }
 
+async fn get_channel(ipfs: IpfsService, callback: Callback<ChannelMetadata>, addr: IPNSAddress) {
+    let cid = match ipfs.name_resolve(addr.into()).await {
+        Ok(cid) => cid,
+        Err(e) => {
+            error!(&format!("{:#?}", e));
+            return;
+        }
+    };
+
+    match ipfs.dag_get::<&str, ChannelMetadata>(cid, None).await {
+        Ok(dag) => callback.emit(dag),
+        Err(e) => error!(&format!("{:#?}", e)),
+    }
+}
+
 async fn channel_subscribe(
     ipfs: IpfsService,
     callback: Callback<ChannelMetadata>,
@@ -311,7 +340,7 @@ async fn stream_content(ipfs: IpfsService, callback: Callback<Cid>, index: IPLDL
     let defluencer = Defluencer::new(ipfs.clone());
 
     let mut stream = defluencer
-        .stream_content_chronologically(index)
+        .stream_content_rev_chrono(index)
         .take(50)
         .boxed_local();
 

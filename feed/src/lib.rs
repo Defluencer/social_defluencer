@@ -114,7 +114,7 @@ async fn stream_feed(
         .map_ok(|cid| ipfs.dag_get::<&str, ChannelMetadata>(cid, None))
         .try_buffer_unordered(follow_count)
         .try_filter_map(|channel| async move { Ok(channel.content_index) })
-        .map_ok(|index| defluencer.stream_content_chronologically(index).take(50))
+        .map_ok(|index| defluencer.stream_content_rev_chrono(index).take(50))
         .try_flatten()
         .map(|result| {
             let ipfs = ipfs.clone();

@@ -12,16 +12,14 @@ use linked_data::media::{
 
 use utils::{ipfs::IPFSContext, seconds_to_timecode, timestamp_to_datetime};
 
-use ybc::{
-    Block, Box, HeaderSize, ImageSize, MediaContent, MediaLeft, MediaRight, Subtitle, Title,
-};
+use ybc::{Block, HeaderSize, ImageSize, MediaContent, MediaLeft, MediaRight, Subtitle, Title};
 
 use yew::{platform::spawn_local, prelude::*};
 
 use yew_router::prelude::Link;
 
 use crate::{
-    cid_explorer::CidExplorer, identification::Identification, image::Image, navbar::Route,
+    dag_explorer::DagExplorer, identification::Identification, image::Image, navbar::Route,
 };
 
 #[derive(Properties, PartialEq)]
@@ -97,103 +95,97 @@ impl Thumbnail {
         let (hour, minute, second) = seconds_to_timecode(metadata.duration);
 
         html! {
-        <Box>
-            <ybc::Media>
-                <MediaLeft>
-                    <Block>
-                        <Identification cid={metadata.identity.link} />
-                    </Block>
-                    <Block>
-                        <span class="icon-text">
-                            <span class="icon"><i class="fas fa-clock"></i></span>
-                            <span> { dt } </span>
-                        </span>
-                    </Block>
-                    <Block>
-                        <span class="icon-text">
-                            <span class="icon"><i class="fas fa-video"></i></span>
-                            <span> { &format!("{}:{}:{}", hour, minute, second) } </span>
-                        </span>
-                    </Block>
-                </MediaLeft>
-                <MediaContent classes={classes!("has-text-centered")} >
-                    <Link<Route> to={Route::Content{ cid: ctx.props().cid}} >
-                        <Title classes={classes!("is-6")} >
-                            { &metadata.title }
-                        </Title>
-                        <ybc::Image size={ImageSize::Is16by9} >
-                            <Image cid={metadata.image.link} />
-                        </ybc::Image>
-                    </Link<Route>>
-                </MediaContent>
-                <MediaRight>
-                    <CidExplorer cid={ctx.props().cid} />
-                </MediaRight>
-            </ybc::Media>
-        </Box>
+        <ybc::Media>
+            <MediaLeft>
+                <Block>
+                    <Identification cid={metadata.identity.link} />
+                </Block>
+                <Block>
+                    <span class="icon-text">
+                        <span class="icon"><i class="fas fa-clock"></i></span>
+                        <span> { dt } </span>
+                    </span>
+                </Block>
+                <Block>
+                    <span class="icon-text">
+                        <span class="icon"><i class="fas fa-video"></i></span>
+                        <span> { &format!("{}:{}:{}", hour, minute, second) } </span>
+                    </span>
+                </Block>
+            </MediaLeft>
+            <MediaContent classes={classes!("has-text-centered")} >
+                <Link<Route> to={Route::Content{ cid: ctx.props().cid}} >
+                    <Title classes={classes!("is-6")} >
+                        { &metadata.title }
+                    </Title>
+                    <ybc::Image size={ImageSize::Is16by9} >
+                        <Image cid={metadata.image.link} />
+                    </ybc::Image>
+                </Link<Route>>
+            </MediaContent>
+            <MediaRight>
+                <DagExplorer cid={ctx.props().cid} />
+            </MediaRight>
+        </ybc::Media>
         }
     }
 
     fn render_blog(&self, ctx: &Context<Self>, dt: String, metadata: &FullPost) -> Html {
         html! {
-        <Box>
-            <ybc::Media>
-                <MediaLeft>
-                    <Block>
-                        <Identification cid={metadata.identity.link} />
-                    </Block>
-                    <Block>
-                        <span class="icon-text">
-                            <span class="icon"><i class="fas fa-clock"></i></span>
-                            <span> { dt } </span>
-                        </span>
-                    </Block>
-                </MediaLeft>
-                <MediaContent classes={classes!("has-text-centered")} >
-                    <Link<Route> to={Route::Content{ cid: ctx.props().cid}} >
-                        <Title classes={classes!("is-6")} >
-                            { &metadata.title }
-                        </Title>
-                        <ybc::Image size={ImageSize::Is16by9} >
-                            <Image cid={metadata.image.link} />
-                        </ybc::Image>
-                    </Link<Route>>
-                </MediaContent>
-                <MediaRight>
-                    <CidExplorer cid={ctx.props().cid} />
-                </MediaRight>
-            </ybc::Media>
-        </Box>
+        <ybc::Media>
+            <MediaLeft>
+                <Block>
+                    <Identification cid={metadata.identity.link} />
+                </Block>
+                <Block>
+                    <span class="icon-text">
+                        <span class="icon"><i class="fas fa-clock"></i></span>
+                        <span> { dt } </span>
+                    </span>
+                </Block>
+            </MediaLeft>
+            <MediaContent classes={classes!("has-text-centered")} >
+                <Link<Route> to={Route::Content{ cid: ctx.props().cid}} >
+                    <Title classes={classes!("is-6")} >
+                        { &metadata.title }
+                    </Title>
+                    <ybc::Image size={ImageSize::Is16by9} >
+                        <Image cid={metadata.image.link} />
+                    </ybc::Image>
+                </Link<Route>>
+            </MediaContent>
+            <MediaRight>
+                <DagExplorer cid={ctx.props().cid} />
+            </MediaRight>
+        </ybc::Media>
         }
     }
 
     fn render_microblog(&self, ctx: &Context<Self>, dt: String, metadata: &MicroPost) -> Html {
         html! {
-        <Box>
-            <ybc::Media>
-                <MediaLeft>
-                    <Block>
-                        <Identification cid={metadata.identity.link} />
-                    </Block>
-                    <Block>
-                        <span class="icon-text">
-                            <span class="icon"><i class="fas fa-clock"></i></span>
-                            <span> { dt } </span>
-                        </span>
-                    </Block>
-                </MediaLeft>
-                <MediaContent>
-                    <Link<Route> to={Route::Content{ cid: ctx.props().cid}} >
-                        <Subtitle classes={classes!("has-text-centered")} size={HeaderSize::Is6} >
-                            { &metadata.content }
-                        </Subtitle>
-                    </Link<Route>>
-                </MediaContent>
-                <MediaRight>
-                    <CidExplorer cid={ctx.props().cid} />
-                </MediaRight>
-            </ybc::Media>
-        </Box>
+        <ybc::Media>
+            <MediaLeft>
+                <Block>
+                    <Identification cid={metadata.identity.link} />
+                </Block>
+                <Block>
+                    <span class="icon-text">
+                        <span class="icon"><i class="fas fa-clock"></i></span>
+                        <span> { dt } </span>
+                    </span>
+                </Block>
+            </MediaLeft>
+            <MediaContent>
+                <Link<Route> to={Route::Content{ cid: ctx.props().cid}} >
+                    <Subtitle classes={classes!("has-text-centered")} size={HeaderSize::Is6} >
+                        { &metadata.content }
+                    </Subtitle>
+                </Link<Route>>
+            </MediaContent>
+            <MediaRight>
+                <DagExplorer cid={ctx.props().cid} />
+            </MediaRight>
+        </ybc::Media>
         }
     }
 }

@@ -4,7 +4,7 @@ use cid::Cid;
 
 use defluencer::{
     channel::{local::LocalUpdater, Channel},
-    signatures::ethereum::EthereumSigner,
+    crypto::signers::EthereumSigner,
     user::User,
 };
 

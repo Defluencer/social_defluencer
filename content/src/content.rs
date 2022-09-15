@@ -1,6 +1,6 @@
 #![cfg(target_arch = "wasm32")]
 
-use defluencer::signatures::signed_link::SignedLink;
+use defluencer::crypto::signed_link::SignedLink;
 
 use ipfs_api::IpfsService;
 
@@ -12,10 +12,7 @@ use linked_data::media::{
     Media,
 };
 
-use ybc::{
-    Block, Box, Container, ImageSize, Level, LevelItem, LevelLeft, LevelRight, MediaContent,
-    MediaLeft, MediaRight, Section, Title,
-};
+use ybc::{Box, Container, ImageSize, Level, LevelItem, LevelLeft, LevelRight, Section, Title};
 
 use yew::{platform::spawn_local, prelude::*};
 
@@ -24,11 +21,12 @@ use cid::Cid;
 use gloo_console::{error, info};
 
 use components::{
-    cid_explorer::CidExplorer, identification::Identification, image::Image, searching::Searching,
+    comment::Comment, comment_button::CommentButton, dag_explorer::DagExplorer,
+    identification::Identification, image::Image, searching::Searching, share_button::ShareButton,
     video_player::VideoPlayer,
 };
 
-use crate::{comment::Comment, md_renderer::Markdown};
+use crate::md_renderer::Markdown;
 
 #[derive(Properties, PartialEq)]
 pub struct Props {
@@ -117,25 +115,38 @@ impl Content {
     fn render_microblog(&self, ctx: &Context<Self>, blog: &MicroPost) -> Html {
         html! {
         <Box>
-            <ybc::Media>
-                <MediaLeft>
-                    <Identification cid={blog.identity.link} addr={self.addr.clone()} />
-                    <Block>
+            <Level>
+                <LevelLeft>
+                    <LevelItem>
+                        <Identification key={blog.identity.link.to_string()} cid={blog.identity.link} addr={self.addr.clone()} />
+                    </LevelItem>
+                    <LevelItem>
                         <span class="icon-text">
                             <span class="icon"><i class="fas fa-clock"></i></span>
                             <span> { &self.dt } </span>
                         </span>
-                    </Block>
-                </MediaLeft>
-                <MediaContent>
-                    <ybc::Content classes={classes!("has-text-centered")} >
-                        { &blog.content }
-                    </ybc::Content>
-                </MediaContent>
-                <MediaRight>
-                    <CidExplorer cid={ctx.props().cid} />
-                </MediaRight>
-            </ybc::Media>
+                    </LevelItem>
+                </LevelLeft>
+                <LevelRight>
+                    <small>{ ctx.props().cid.to_string() }</small>
+                </LevelRight>
+            </Level>
+            <ybc::Content>
+                { &blog.content }
+            </ybc::Content>
+            <Level>
+                <LevelLeft>
+                    <LevelItem>
+                        <CommentButton cid={ctx.props().cid} />
+                    </LevelItem>
+                    <LevelItem>
+                        <ShareButton cid={ctx.props().cid} />
+                    </LevelItem>
+                </LevelLeft>
+                <LevelRight>
+                    <DagExplorer cid={ctx.props().cid} />
+                </LevelRight>
+            </Level>
         </Box>
         }
     }
@@ -163,13 +174,23 @@ impl Content {
                 </LevelLeft>
                 <LevelRight>
                     <LevelItem>
-                        <CidExplorer cid={ctx.props().cid} />
+                        <DagExplorer cid={ctx.props().cid} />
                     </LevelItem>
                 </LevelRight>
             </Level>
             <ybc::Content>
                 <Markdown cid={article.content.link} />
             </ybc::Content>
+            <Level>
+                <LevelLeft>
+                    <LevelItem>
+                        <CommentButton cid={ctx.props().cid} />
+                    </LevelItem>
+                    <LevelItem>
+                        <ShareButton cid={ctx.props().cid} />
+                    </LevelItem>
+                </LevelLeft>
+            </Level>
         </Box>
         }
     }
@@ -180,7 +201,6 @@ impl Content {
             <Title>
                 { &video.title }
             </Title>
-                <VideoPlayer cid={ctx.props().cid} />
             <Level>
                 <LevelLeft>
                     <LevelItem>
@@ -195,9 +215,20 @@ impl Content {
                 </LevelLeft>
                 <LevelRight>
                     <LevelItem>
-                        <CidExplorer cid={ctx.props().cid} />
+                        <DagExplorer cid={ctx.props().cid} />
                     </LevelItem>
                 </LevelRight>
+            </Level>
+            <VideoPlayer cid={ctx.props().cid} />
+            <Level>
+                <LevelLeft>
+                    <LevelItem>
+                        <CommentButton cid={ctx.props().cid} />
+                    </LevelItem>
+                    <LevelItem>
+                        <ShareButton cid={ctx.props().cid} />
+                    </LevelItem>
+                </LevelLeft>
             </Level>
         </Box>
         }

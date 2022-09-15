@@ -4,7 +4,7 @@ use std::collections::{HashMap, VecDeque};
 
 use cid::Cid;
 
-use defluencer::signatures::signed_link::SignedLink;
+use defluencer::crypto::signed_link::SignedLink;
 
 use futures_util::stream::AbortHandle;
 

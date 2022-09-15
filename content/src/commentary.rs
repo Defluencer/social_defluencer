@@ -2,11 +2,11 @@
 
 use std::collections::HashSet;
 
-use futures_util::{StreamExt, TryStreamExt};
+use futures_util::{stream::FuturesUnordered, StreamExt, TryStreamExt};
 
-use linked_data::types::IPNSAddress;
+use linked_data::{channel::ChannelMetadata, types::IPNSAddress};
 
-use utils::{follows::get_follow_list, ipfs::IPFSContext};
+use utils::{defluencer::ChannelContext, follows::get_follow_list, ipfs::IPFSContext};
 
 use ybc::{Container, Section};
 
@@ -16,13 +16,13 @@ use cid::Cid;
 
 use gloo_console::{error, info};
 
-use crate::comment::Comment;
+use components::comment::Comment;
 
 use ipfs_api::IpfsService;
 
 use defluencer::Defluencer;
 
-const MAX_CRAWL_RESULT: usize = 50;
+//const MAX_CRAWL_RESULT: usize = 50;
 
 #[derive(Properties, PartialEq)]
 pub struct Props {
@@ -51,13 +51,19 @@ impl Component for Commentary {
             .context::<IPFSContext>(Callback::noop())
             .expect("IPFS Context");
 
-        let follows = get_follow_list();
+        let mut follows = get_follow_list();
+
+        if let Some((context, _)) = ctx.link().context::<ChannelContext>(Callback::noop()) {
+            follows.insert(context.channel.get_address());
+        }
+
+        let comment_cb = ctx.link().callback(Msg::Comment);
 
         spawn_local(stream_comments(
             context.client,
             ctx.props().cid,
             follows,
-            ctx.link().callback(Msg::Comment),
+            comment_cb.clone(),
         ));
 
         Self {
@@ -85,7 +91,7 @@ impl Component for Commentary {
                 let cid = *cid;
 
                 html! {
-                    <Comment {cid} />
+                    <Comment key={cid.to_string()} {cid} />
                 }
             })
             .collect::<Html>();
@@ -102,29 +108,33 @@ impl Component for Commentary {
 
 async fn stream_comments(
     ipfs: IpfsService,
-    cid: Cid,
+    content_cid: Cid,
     follows: HashSet<IPNSAddress>,
     callback: Callback<Cid>,
 ) {
-    let defluencer = Defluencer::new(ipfs);
+    let defluencer = Defluencer::new(ipfs.clone());
 
-    defluencer
-        .streaming_web_crawl(follows.into_iter())
-        .take(MAX_CRAWL_RESULT)
-        .map_ok(|(_, metadata)| metadata.comment_index)
-        .try_filter_map(|option| async move {
-            match option {
-                Some(ipld) => Ok(Some(ipld)),
-                None => Ok(None),
-            }
-        })
-        .map_ok(|link| defluencer.stream_comments(link, cid))
+    //TODO fix web crawl
+
+    let follow_count = follows.len();
+
+    let stream: FuturesUnordered<_> = follows
+        .into_iter()
+        .map(|addr| ipfs.name_resolve(addr.into()))
+        .collect();
+
+    let mut stream = stream
+        .map_ok(|cid| ipfs.dag_get::<&str, ChannelMetadata>(cid, None))
+        .try_buffer_unordered(follow_count)
+        .try_filter_map(|channel| async move { Ok(channel.comment_index) })
+        .map_ok(|index| defluencer.stream_comments(index, content_cid))
         .try_flatten()
-        .for_each(|result| async {
-            match result {
-                Ok(cid) => callback.emit(cid),
-                Err(e) => error!(&format!("{:#?}", e)),
-            }
-        })
-        .await;
+        .boxed_local();
+
+    while let Some(result) = stream.next().await {
+        match result {
+            Ok(cid) => callback.emit(cid),
+            Err(e) => error!(&format!("{:#?}", e)),
+        }
+    }
 }

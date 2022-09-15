@@ -4,7 +4,7 @@ use std::collections::{HashMap, HashSet};
 
 use cid::Cid;
 
-use components::{cid_explorer::CidExplorer, navbar::Route};
+use components::{dag_explorer::DagExplorer, navbar::Route};
 
 use defluencer::channel::Channel;
 
@@ -316,7 +316,7 @@ impl IdentitySettings {
                     </LevelLeft>
                     <LevelRight>
                         <LevelItem>
-                            <CidExplorer {cid} />
+                            <DagExplorer {cid} />
                         </LevelItem>
                         <LevelItem>
                             <Button onclick={delete_cb} >

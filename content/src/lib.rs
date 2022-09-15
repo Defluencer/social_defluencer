@@ -1,6 +1,5 @@
 #![cfg(target_arch = "wasm32")]
 
-mod comment;
 mod commentary;
 mod content;
 mod markdown;
