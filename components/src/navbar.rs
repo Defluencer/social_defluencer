@@ -56,8 +56,8 @@ pub fn navbar() -> Html {
 
 #[derive(Routable, Clone, PartialEq)]
 pub enum Route {
-    #[at("/channel/:cid")]
-    Channel { cid: Cid }, // social.defluencer.eth/#/channel/<IPNS_HERE>
+    #[at("/channel/:addr")]
+    Channel { addr: Cid }, // social.defluencer.eth/#/channel/<IPNS_HERE>
 
     #[at("/content/:cid")]
     Content { cid: Cid }, // social.defluencer.eth/#/content/<CID_HERE>

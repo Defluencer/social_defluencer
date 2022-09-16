@@ -171,7 +171,7 @@ impl Component for App {
                     <HashRouter>
                         <Switch<Route> render={move |route| {
                             match route {
-                                Route::Channel { cid } => html!{ <ChannelPage {cid} /> },
+                                Route::Channel { addr } => html!{ <ChannelPage {addr} /> },
                                 Route::Content { cid } => html!{ <ContentPage {cid} /> },
                                 Route::Feed => html!{ <FeedPage /> },
                                 Route::Home => html!{ <HomePage /> },

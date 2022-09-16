@@ -21,11 +21,7 @@ use web_sys::File as SysFile;
 #[derive(Properties, PartialEq)]
 pub struct Props {
     /// Channel Address
-    pub cid: Cid,
-
-    pub content_cb: Callback<Cid>,
-
-    pub remove_cb: Callback<Cid>,
+    pub addr: Cid,
 }
 
 pub struct ManageContent {
@@ -129,7 +125,7 @@ impl Component for ManageContent {
             Msg::Image(images) => self.on_images(images),
             Msg::Markdown(markdowns) => self.on_markdowns(markdowns),
             Msg::FormCid(cid_string) => self.on_form_cid(&cid_string),
-            Msg::Result(cid) => self.on_result(ctx, cid),
+            Msg::Result(_) => self.on_result(),
         }
     }
 
@@ -316,28 +312,6 @@ impl ManageContent {
         true
     }
 
-    fn on_title(&mut self, title: String) -> bool {
-        if title.is_empty() {
-            self.disabled = true;
-        } else {
-            self.title = title;
-        }
-
-        true
-    }
-
-    fn on_form_cid(&mut self, cid_str: &str) -> bool {
-        self.form_cid = match Cid::try_from(cid_str) {
-            Ok(cid) => cid,
-            Err(e) => {
-                error!(&format!("{:#?}", e));
-                return false;
-            }
-        };
-
-        true
-    }
-
     fn on_modal(&mut self, modal: Modals) -> bool {
         self.loading = false;
         self.disabled = false;
@@ -356,15 +330,24 @@ impl ManageContent {
         true
     }
 
-    fn on_result(&mut self, ctx: &Context<Self>, cid: Cid) -> bool {
-        match self.modal {
-            Modals::None => return false,
-            Modals::Remove => ctx.props().remove_cb.emit(cid),
-            _ => ctx.props().content_cb.emit(cid),
+    fn on_title(&mut self, title: String) -> bool {
+        if title.is_empty() {
+            self.disabled = true;
+        } else {
+            self.title = title;
         }
 
-        self.loading = false;
-        self.modal = Modals::None;
+        true
+    }
+
+    fn on_form_cid(&mut self, cid_str: &str) -> bool {
+        self.form_cid = match Cid::try_from(cid_str) {
+            Ok(cid) => cid,
+            Err(e) => {
+                error!(&format!("{:#?}", e));
+                return false;
+            }
+        };
 
         true
     }
@@ -390,9 +373,18 @@ impl ManageContent {
 
         true
     }
-}
 
-//TODO channel.add_content take 2 mins maybe best to do it in the background.
+    fn on_result(&mut self) -> bool {
+        if let Modals::None = self.modal {
+            return false;
+        }
+
+        self.loading = false;
+        self.modal = Modals::None;
+
+        true
+    }
+}
 
 async fn create_micro_post(
     user: User<EthereumSigner>,

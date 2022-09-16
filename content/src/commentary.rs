@@ -2,9 +2,12 @@
 
 use std::collections::HashSet;
 
-use futures_util::{stream::FuturesUnordered, StreamExt, TryStreamExt};
+use futures_util::{
+    stream::{AbortHandle, AbortRegistration, Abortable},
+    StreamExt, TryStreamExt,
+};
 
-use linked_data::{channel::ChannelMetadata, types::IPNSAddress};
+use linked_data::types::IPNSAddress;
 
 use utils::{defluencer::ChannelContext, follows::get_follow_list, ipfs::IPFSContext};
 
@@ -22,8 +25,6 @@ use ipfs_api::IpfsService;
 
 use defluencer::Defluencer;
 
-//const MAX_CRAWL_RESULT: usize = 50;
-
 #[derive(Properties, PartialEq)]
 pub struct Props {
     /// signed link to Media Content Cid
@@ -31,6 +32,8 @@ pub struct Props {
 }
 
 pub struct Commentary {
+    handle: AbortHandle,
+
     comments_set: HashSet<Cid>,
 }
 
@@ -59,14 +62,18 @@ impl Component for Commentary {
 
         let comment_cb = ctx.link().callback(Msg::Comment);
 
+        let (handle, regis) = AbortHandle::new_pair();
+
         spawn_local(stream_comments(
             context.client,
-            ctx.props().cid,
             follows,
+            ctx.props().cid,
             comment_cb.clone(),
+            regis,
         ));
 
         Self {
+            handle,
             comments_set: HashSet::default(),
         }
     }
@@ -104,32 +111,31 @@ impl Component for Commentary {
         </Section>
         }
     }
+
+    fn destroy(&mut self, _ctx: &Context<Self>) {
+        #[cfg(debug_assertions)]
+        info!("Commentary Destroy");
+
+        self.handle.abort();
+    }
 }
 
 async fn stream_comments(
     ipfs: IpfsService,
-    content_cid: Cid,
     follows: HashSet<IPNSAddress>,
+    content_cid: Cid,
     callback: Callback<Cid>,
+    regis: AbortRegistration,
 ) {
-    let defluencer = Defluencer::new(ipfs.clone());
+    let defluencer = Defluencer::new(ipfs);
 
-    //TODO fix web crawl
+    let stream = defluencer
+        .streaming_web_crawl(follows.into_iter())
+        .try_filter_map(|(_, channel)| async move { Ok(channel.comment_index) })
+        .map_ok(|index| defluencer.stream_content_comments(index, content_cid))
+        .try_flatten();
 
-    let follow_count = follows.len();
-
-    let stream: FuturesUnordered<_> = follows
-        .into_iter()
-        .map(|addr| ipfs.name_resolve(addr.into()))
-        .collect();
-
-    let mut stream = stream
-        .map_ok(|cid| ipfs.dag_get::<&str, ChannelMetadata>(cid, None))
-        .try_buffer_unordered(follow_count)
-        .try_filter_map(|channel| async move { Ok(channel.comment_index) })
-        .map_ok(|index| defluencer.stream_comments(index, content_cid))
-        .try_flatten()
-        .boxed_local();
+    let mut stream = Abortable::new(stream, regis).boxed_local();
 
     while let Some(result) = stream.next().await {
         match result {

@@ -289,7 +289,7 @@ impl IdentitySettings {
                 let channel = if let Some(addr) = identity.channel_ipns {
                     html! {
                     <LevelItem>
-                        <ButtonRouter<Route> route={Route::Channel { cid: addr.into() }}>
+                        <ButtonRouter<Route> route={Route::Channel { addr: addr.into() }}>
                             <span class="icon-text">
                                 <span class="icon"><i class="fas fa-rss"></i></span>
                                 <span> {"Go To Channel"} </span>

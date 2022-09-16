@@ -14,7 +14,7 @@ use components::{
 use defluencer::Defluencer;
 
 use futures_util::{
-    stream::{AbortHandle, AbortRegistration},
+    stream::{AbortHandle, AbortRegistration, Abortable},
     StreamExt,
 };
 
@@ -41,26 +41,26 @@ use cid::Cid;
 #[derive(Properties, PartialEq)]
 pub struct Props {
     /// Channel Address
-    pub cid: Cid,
+    pub addr: Cid,
 }
 
 //TODO If live, display video
 
 //TODO display all comments too
 
+//TODO refactor to use pure component for media AKA load all the content THEN display it
+
 /// social.defluencer.eth/#/channel/<IPNS_HERE>
 ///
 /// A specific channel page
 pub struct ChannelPage {
-    handle: AbortHandle,
+    sub_handle: AbortHandle,
+    stream_handle: Option<AbortHandle>,
 
     metadata: Option<ChannelMetadata>,
 
     content: VecDeque<Cid>,
     content_cb: Callback<Cid>,
-    create_cb: Callback<Cid>,
-
-    other_remove_cb: Callback<Cid>,
 
     own_channel: bool,
 
@@ -71,8 +71,6 @@ pub struct ChannelPage {
 pub enum Msg {
     Update(ChannelMetadata),
     Content(Cid),
-    Created(Cid),
-    Remove(Cid),
     Follow,
 }
 
@@ -92,20 +90,19 @@ impl Component for ChannelPage {
         spawn_local(get_channel(
             context.client.clone(),
             ctx.link().callback(Msg::Update),
-            ctx.props().cid.into(),
+            ctx.props().addr.into(),
         ));
 
-        let (handle, regis) = AbortHandle::new_pair();
+        let (sub_handle, regis) = AbortHandle::new_pair();
 
         spawn_local(channel_subscribe(
             context.client.clone(),
             ctx.link().callback(Msg::Update),
-            ctx.props().cid.into(),
+            ctx.props().addr.into(),
             regis,
         ));
 
         let content_cb = ctx.link().callback(Msg::Content);
-        let create_cb = ctx.link().callback(Msg::Created);
 
         let mut channel = false;
 
@@ -115,32 +112,28 @@ impl Component for ChannelPage {
             .is_some()
         {
             if let Some((context, _)) = ctx.link().context::<ChannelContext>(Callback::noop()) {
-                if context.channel.get_address() == ctx.props().cid.into() {
+                if context.channel.get_address() == ctx.props().addr.into() {
                     channel = true;
                 }
             }
         }
-
-        let other_remove_cb = ctx.link().callback(Msg::Remove);
 
         let follow_cb = ctx.link().callback(|_| Msg::Follow);
 
         let following = {
             let list = utils::follows::get_follow_list();
 
-            list.contains(&ctx.props().cid.into())
+            list.contains(&ctx.props().addr.into())
         };
 
         Self {
-            handle,
+            sub_handle,
+            stream_handle: None,
 
             metadata: None,
 
             content: Default::default(),
             content_cb,
-            create_cb,
-
-            other_remove_cb,
 
             own_channel: channel,
 
@@ -155,9 +148,7 @@ impl Component for ChannelPage {
 
         match msg {
             Msg::Update(metadata) => self.on_channel_update(ctx, metadata),
-            Msg::Content(cid) => self.on_older_content(cid),
-            Msg::Created(cid) => self.on_newer_content(cid),
-            Msg::Remove(cid) => self.on_remove_content(cid),
+            Msg::Content(cid) => self.on_content(cid),
             Msg::Follow => self.on_follow(ctx),
         }
     }
@@ -176,7 +167,11 @@ impl Component for ChannelPage {
         #[cfg(debug_assertions)]
         info!("Channel Page Destroy");
 
-        self.handle.abort();
+        self.sub_handle.abort();
+
+        if let Some(handle) = self.stream_handle.take() {
+            handle.abort();
+        }
     }
 }
 
@@ -195,13 +190,13 @@ impl ChannelPage {
                 <Container>
                     if self.own_channel
                     {
-                        <ManageContent cid={ctx.props().cid} content_cb={self.create_cb.clone()} remove_cb={self.other_remove_cb.clone()} />
+                        <ManageContent addr={ctx.props().addr} />
                     }
                     {
                         self.content.iter().rev().map(|&cid| {
                             html! {
                             <Box>
-                                <Thumbnail key={cid.to_string()} {cid} />
+                                <Thumbnail {cid} />
                             </Box>
                             }
                         }).collect::<Html>()
@@ -222,11 +217,15 @@ impl ChannelPage {
     }
 
     fn on_channel_update(&mut self, ctx: &Context<Self>, metadata: ChannelMetadata) -> bool {
-        if Some(&metadata) == self.metadata.as_ref() {
+        if self.metadata.as_ref() == Some(&metadata) {
             return false;
         }
 
         if let Some(index) = metadata.content_index {
+            if let Some(handle) = self.stream_handle.take() {
+                handle.abort();
+            }
+
             self.content.clear();
 
             let (context, _) = ctx
@@ -234,11 +233,16 @@ impl ChannelPage {
                 .context::<IPFSContext>(Callback::noop())
                 .expect("IPFS Context");
 
+            let (stream_handle, regis) = AbortHandle::new_pair();
+
             spawn_local(stream_content(
                 context.client.clone(),
                 self.content_cb.clone(),
                 index,
+                regis,
             ));
+
+            self.stream_handle = Some(stream_handle);
         }
 
         self.metadata = Some(metadata);
@@ -246,29 +250,9 @@ impl ChannelPage {
         true
     }
 
-    fn on_older_content(&mut self, cid: Cid) -> bool {
+    fn on_content(&mut self, cid: Cid) -> bool {
         if self.content.len() < 50 {
             self.content.push_front(cid);
-
-            return true;
-        }
-
-        false
-    }
-
-    fn on_newer_content(&mut self, cid: Cid) -> bool {
-        self.content.push_back(cid);
-
-        if self.content.len() > 50 {
-            self.content.pop_front();
-        }
-
-        true
-    }
-
-    fn on_remove_content(&mut self, cid: Cid) -> bool {
-        if let Some(index) = self.content.iter().position(|&item| item == cid) {
-            self.content.remove(index);
 
             return true;
         }
@@ -280,9 +264,9 @@ impl ChannelPage {
         let mut list = utils::follows::get_follow_list();
 
         if !self.following {
-            list.insert(ctx.props().cid.into());
+            list.insert(ctx.props().addr.into());
         } else {
-            list.remove(&ctx.props().cid.into());
+            list.remove(&ctx.props().addr.into());
         }
 
         utils::follows::set_follow_list(list);
@@ -336,13 +320,17 @@ async fn channel_subscribe(
     }
 }
 
-async fn stream_content(ipfs: IpfsService, callback: Callback<Cid>, index: IPLDLink) {
+async fn stream_content(
+    ipfs: IpfsService,
+    callback: Callback<Cid>,
+    index: IPLDLink,
+    regis: AbortRegistration,
+) {
     let defluencer = Defluencer::new(ipfs.clone());
 
-    let mut stream = defluencer
-        .stream_content_rev_chrono(index)
-        .take(50)
-        .boxed_local();
+    let stream = defluencer.stream_content_rev_chrono(index).take(50);
+
+    let mut stream = Abortable::new(stream, regis).boxed_local();
 
     while let Some(result) = stream.next().await {
         match result {
