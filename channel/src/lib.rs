@@ -48,8 +48,6 @@ pub struct Props {
 
 //TODO display all comments too
 
-//TODO refactor to use pure component for media AKA load all the content THEN display it
-
 /// social.defluencer.eth/#/channel/<IPNS_HERE>
 ///
 /// A specific channel page
@@ -300,22 +298,32 @@ async fn channel_subscribe(
 ) {
     let defluencer = Defluencer::new(ipfs.clone());
 
-    let mut stream = defluencer
-        .subscribe_channel_updates(addr, regis)
-        .boxed_local();
+    let stream = defluencer
+        .subscribe_channel_updates(addr)
+        .map(|result| {
+            let ipfs = ipfs.clone();
+
+            async move {
+                match result {
+                    Ok(cid) => match ipfs.dag_get::<&str, ChannelMetadata>(cid, None).await {
+                        Ok(dag) => Ok(dag),
+                        Err(e) => Err(e.into()),
+                    },
+                    Err(e) => Err(e),
+                }
+            }
+        })
+        .buffer_unordered(2);
+
+    let mut stream = Abortable::new(stream, regis).boxed_local();
 
     while let Some(result) = stream.next().await {
-        let cid = match result {
-            Ok(cid) => cid,
+        match result {
+            Ok(dag) => callback.emit(dag),
             Err(e) => {
                 error!(&format!("{:#?}", e));
                 continue;
             }
-        };
-
-        match ipfs.dag_get::<&str, ChannelMetadata>(cid, None).await {
-            Ok(dag) => callback.emit(dag),
-            Err(e) => error!(&format!("{:#?}", e)),
         }
     }
 }

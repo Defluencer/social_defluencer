@@ -7,7 +7,7 @@ use std::{
 
 use either::Either;
 
-use futures_util::future::AbortHandle;
+use futures_util::{future::AbortHandle, stream::Abortable, StreamExt};
 
 use gloo_console::{error, info, warn};
 
@@ -304,9 +304,9 @@ impl VideoPlayer {
                     let topic = settings.video_topic.clone();
 
                     async move {
-                        use futures_util::StreamExt;
+                        let stream = ipfs.pubsub_sub(topic.into_bytes());
 
-                        let mut stream = ipfs.pubsub_sub(topic.into_bytes(), regis).boxed_local();
+                        let mut stream = Abortable::new(stream, regis).boxed_local();
 
                         while let Some(result) = stream.next().await {
                             match result {

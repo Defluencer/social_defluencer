@@ -109,6 +109,7 @@ impl Component for CommentButton {
         }
     }
 }
+
 impl CommentButton {
     fn render_modal(&self, cid: Cid, ctx: &Context<Self>) -> Html {
         html! {

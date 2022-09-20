@@ -6,7 +6,10 @@ use cid::Cid;
 
 use defluencer::crypto::signed_link::SignedLink;
 
-use futures_util::stream::AbortHandle;
+use futures_util::{
+    stream::{AbortHandle, Abortable},
+    StreamExt,
+};
 
 use gloo_console::error;
 
@@ -65,9 +68,9 @@ impl Component for ChatDisplay {
             let topic = topic.clone();
 
             async move {
-                use futures_util::StreamExt;
+                let stream = ipfs.pubsub_sub(topic.into_bytes());
 
-                let mut stream = ipfs.pubsub_sub(topic.into_bytes(), regis).boxed_local();
+                let mut stream = Abortable::new(stream, regis).boxed_local();
 
                 while let Some(result) = stream.next().await {
                     match result {
