@@ -7,12 +7,14 @@ use gloo_console::error;
 use utils::ipfs::IPFSContext;
 
 use ybc::{ImageSize, Level, LevelItem, LevelRight};
+
 use yew::{platform::spawn_local, prelude::*};
 
 use linked_data::identity::Identity;
+
 use yew_router::prelude::Link;
 
-use crate::{image::Image, navbar::Route};
+use crate::{navbar::Route, pure::IPFSImage};
 
 #[derive(Properties, PartialEq)]
 pub struct Props {
@@ -69,11 +71,9 @@ impl Component for Identification {
         match &self.identity {
             Some(identity) => {
                 let img = match identity.avatar {
-                    Some(avatar) => html! {
-                        <ybc::Image size={ImageSize::Is64x64} >
-                            <Image cid={avatar.link} round=true />
-                        </ybc::Image>
-                    },
+                    Some(ipld) => {
+                        html! { <IPFSImage cid={ipld.link} size={ImageSize::Is64x64} rounded=true /> }
+                    }
                     None => html!(), //TODO default avatar
                 };
 

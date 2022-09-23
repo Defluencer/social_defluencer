@@ -24,10 +24,11 @@ use ybc::{
     Block, Content, ImageSize, Level, LevelItem, LevelLeft, Media, MediaContent, MediaLeft,
     MediaRight,
 };
+
 use yew_router::prelude::Link;
 
 use crate::{
-    comment_button::CommentButton, dag_explorer::DagExplorer, image::Image, navbar::Route,
+    comment_button::CommentButton, dag_explorer::DagExplorer, navbar::Route, pure::IPFSImage,
     searching::Searching, share_button::ShareButton,
 };
 
@@ -132,11 +133,7 @@ impl Component for Comment {
             <MediaLeft>
             {
                 if let Some(ipld) = identity.avatar {
-                    html! {
-                    <ybc::Image  size={ImageSize::Is64x64} >
-                        <Image key={ipld.link.to_string()} cid={ipld.link} round=true />
-                    </ybc::Image>
-                    }
+                    html! { <IPFSImage cid={ipld.link} size={ImageSize::Is64x64} rounded=true /> }
                 } else {
                     html!()
                 }

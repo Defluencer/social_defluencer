@@ -260,7 +260,7 @@ impl IdentitySettings {
                     </button>
                 </header>
                 <section class="modal-card-body">
-                   { "Are you should you want to delete this identity?" }
+                   { "Are you should you want to delete this identity, channel and content?" }
                 </section>
                 <footer class="modal-card-foot">
                     <Button onclick={self.confirm_delete_cb.clone()} >

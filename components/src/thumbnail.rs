@@ -21,7 +21,7 @@ use yew::{platform::spawn_local, prelude::*};
 
 use yew_router::prelude::Link;
 
-use crate::{image::Image, navbar::Route};
+use crate::{navbar::Route, pure::IPFSImage};
 
 #[derive(Properties, PartialEq)]
 pub struct Props {
@@ -115,11 +115,7 @@ impl Thumbnail {
             <MediaLeft>
             {
                 if let Some(ipld) = identity.avatar {
-                    html! {
-                    <ybc::Image  size={ImageSize::Is64x64} >
-                        <Image key={ipld.link.to_string()} cid={ipld.link} round=true />
-                    </ybc::Image>
-                    }
+                    html! { <IPFSImage key={ipld.link.to_string()} cid={ipld.link} size={ImageSize::Is64x64} rounded=true /> }
                 } else {
                     html!()
                 }
@@ -130,9 +126,7 @@ impl Thumbnail {
                     <Title classes={classes!("is-6")} >
                         { &metadata.title }
                     </Title>
-                    <ybc::Image size={ImageSize::Is16by9} >
-                        <Image cid={metadata.image.link} round=false />
-                    </ybc::Image>
+                    <IPFSImage key={metadata.image.link.to_string()} cid={metadata.image.link} size={ImageSize::Is16by9} rounded=false />
                 </Link<Route>>
             </MediaContent>
         </ybc::Media>
@@ -145,11 +139,7 @@ impl Thumbnail {
             <MediaLeft>
             {
                 if let Some(ipld) = identity.avatar {
-                    html! {
-                    <ybc::Image  size={ImageSize::Is64x64} >
-                        <Image key={ipld.link.to_string()} cid={ipld.link} round=true />
-                    </ybc::Image>
-                    }
+                    html! { <IPFSImage key={ipld.link.to_string()} cid={ipld.link} size={ImageSize::Is64x64} rounded=true /> }
                 } else {
                     html!()
                 }
@@ -175,9 +165,7 @@ impl Thumbnail {
                 </Level>
                 <Link<Route> to={Route::Content{ cid: ctx.props().cid}} >
                     { &metadata.title }
-                    <ybc::Image size={ImageSize::Is16by9} >
-                        <Image cid={metadata.image.link} round=false />
-                    </ybc::Image>
+                    <IPFSImage key={metadata.image.link.to_string()} cid={metadata.image.link} size={ImageSize::Is16by9} rounded=false />
                 </Link<Route>>
             </MediaContent>
         </ybc::Media>
@@ -195,11 +183,7 @@ impl Thumbnail {
             <MediaLeft>
             {
                 if let Some(ipld) = identity.avatar {
-                    html! {
-                    <ybc::Image  size={ImageSize::Is64x64} >
-                        <Image key={ipld.link.to_string()} cid={ipld.link} round=true />
-                    </ybc::Image>
-                    }
+                    html! { <IPFSImage key={ipld.link.to_string()} cid={ipld.link} size={ImageSize::Is64x64} rounded=true /> }
                 } else {
                     html!()
                 }
@@ -242,11 +226,7 @@ impl Thumbnail {
             <MediaLeft>
             {
                 if let Some(ipld) = identity.avatar {
-                    html! {
-                    <ybc::Image  size={ImageSize::Is64x64} >
-                        <Image key={ipld.link.to_string()} cid={ipld.link} round=true />
-                    </ybc::Image>
-                    }
+                    html! { <IPFSImage key={ipld.link.to_string()} cid={ipld.link} size={ImageSize::Is64x64} rounded=true /> }
                 } else {
                     html!()
                 }

@@ -13,8 +13,8 @@ use ybc::{Block, ImageSize, Level, LevelItem, LevelLeft, MediaContent, MediaLeft
 use yew_router::prelude::Link;
 
 use crate::{
-    comment_button::CommentButton, dag_explorer::DagExplorer, image::Image, md_renderer::Markdown,
-    navbar::Route, share_button::ShareButton, video_player::VideoPlayer,
+    comment_button::CommentButton, dag_explorer::DagExplorer, md_renderer::Markdown, navbar::Route,
+    pure::IPFSImage, share_button::ShareButton, video_player::VideoPlayer,
 };
 
 #[derive(Properties, PartialEq)]
@@ -55,11 +55,7 @@ pub fn pure_content(props: &ContentProps) -> Html {
     }
 
     let avatar = if let Some(ipld) = identity.avatar {
-        html! {
-        <ybc::Image  size={ImageSize::Is64x64} >
-            <Image key={ipld.link.to_string()} cid={ipld.link} round=true />
-        </ybc::Image>
-        }
+        html! { <IPFSImage cid={ipld.link} size={ImageSize::Is64x64} rounded=true /> }
     } else {
         html!()
     };
