@@ -27,23 +27,20 @@ fn add_class(vtag: &mut VTag, class: impl Into<Classes>) {
     vtag.add_attribute("class", classes.to_string());
 }
 
-/// Renders a string of Markdown to HTML with the default options (footnotes
-/// disabled, tables enabled).
+/// Renders a string of Markdown to HTML with the default options.
 pub fn render_markdown(src: &str) -> Html {
     let mut elems = vec![];
     let mut spine = vec![];
 
     macro_rules! add_child {
         ($child:expr) => {{
-            let l = spine.len();
-            assert_ne!(l, 0);
-            spine[l - 1].add_child($child);
+            if let Some(item) = spine.last_mut() {
+                item.add_child($child);
+            }
         }};
     }
 
-    let mut options = Options::empty();
-    options.insert(Options::ENABLE_TABLES);
-    options.insert(Options::ENABLE_HEADING_ATTRIBUTES);
+    let options = Options::empty();
 
     for ev in Parser::new_ext(src, options) {
         match ev {
@@ -115,7 +112,7 @@ pub fn render_markdown(src: &str) -> Html {
 fn make_tag(t: Tag) -> VTag {
     match t {
         Tag::Paragraph => VTag::new("p"),
-        Tag::Heading(heading_level, _frag_id, _classes) => VTag::new(format!("h{}", heading_level)),
+        Tag::Heading(heading_level, _frag_id, _classes) => VTag::new(format!("{}", heading_level)),
         Tag::BlockQuote => {
             let mut el = VTag::new("blockquote");
             el.add_attribute("class", "blockquote");

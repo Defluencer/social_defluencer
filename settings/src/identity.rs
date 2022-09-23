@@ -529,13 +529,7 @@ impl IdentitySettings {
                 .expect("IPFS Context");
             let ipfs = context.client;
 
-            spawn_local({
-                async move {
-                    if let Err(e) = ipfs.key_rm(key).await {
-                        error!(&format!("{:?}", e));
-                    }
-                }
-            });
+            spawn_local(delete_channel(ipfs, key));
         }
 
         true
@@ -592,4 +586,35 @@ async fn create_identity(
     }
 
     cb.emit((cid, identity));
+}
+
+async fn delete_channel(ipfs: IpfsService, key: String) {
+    let key_list = match ipfs.key_list().await {
+        Ok(list) => list,
+        Err(e) => {
+            error!(&format!("{:?}", e));
+            return;
+        }
+    };
+
+    let addr = match key_list.get(&key) {
+        Some(cid) => cid,
+        None => return,
+    };
+
+    let cid = match ipfs.name_resolve(addr.into()).await {
+        Ok(cid) => cid,
+        Err(e) => {
+            error!(&format!("{:?}", e));
+            return;
+        }
+    };
+
+    if let Err(e) = ipfs.pin_rm(cid, true).await {
+        error!(&format!("{:?}", e));
+    }
+
+    if let Err(e) = ipfs.key_rm(key).await {
+        error!(&format!("{:?}", e));
+    }
 }

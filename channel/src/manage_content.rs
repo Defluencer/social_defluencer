@@ -12,7 +12,7 @@ use gloo_console::error;
 
 use utils::defluencer::{ChannelContext, UserContext};
 
-use ybc::{Box, Button, Control, Field, File, Input, Level, LevelItem};
+use ybc::{Box, Button, Control, Field, File, Input, Level, LevelItem, TextArea};
 
 use yew::{platform::spawn_local, prelude::*};
 
@@ -179,7 +179,7 @@ impl ManageContent {
             <section class="modal-card-body">
                 <Field label="Text" >
                     <Control>
-                        <Input name="text" value="" update={self.title_cb.clone()} />
+                        <TextArea name="text" value="" update={self.title_cb.clone()} placeholder={"Text here..."} rows={4} fixed_size={true} />
                     </Control>
                 </Field>
             </section>
@@ -314,7 +314,7 @@ impl ManageContent {
 
     fn on_modal(&mut self, modal: Modals) -> bool {
         self.loading = false;
-        self.disabled = false;
+        self.disabled = true;
 
         self.modal = modal;
 
@@ -335,6 +335,7 @@ impl ManageContent {
             self.disabled = true;
         } else {
             self.title = title;
+            self.disabled = false;
         }
 
         true
@@ -392,7 +393,7 @@ async fn create_micro_post(
     text: String,
     callback: Callback<Cid>,
 ) {
-    let cid = match user.create_micro_blog_post(text).await {
+    let cid = match user.create_micro_blog_post(text, false).await {
         Ok(cid) => cid,
         Err(e) => {
             error!(&format!("{:#?}", e));
@@ -414,7 +415,7 @@ async fn create_video_post(
     image: SysFile,
     callback: Callback<Cid>,
 ) {
-    let cid = match user.create_video_post(title, cid, image).await {
+    let cid = match user.create_video_post(title, cid, image, false).await {
         Ok(cid) => cid,
         Err(e) => {
             error!(&format!("{:#?}", e));
@@ -436,7 +437,7 @@ async fn create_article(
     markdown: SysFile,
     callback: Callback<Cid>,
 ) {
-    let cid = match user.create_blog_post(title, image, markdown).await {
+    let cid = match user.create_blog_post(title, image, markdown, false).await {
         Ok(cid) => cid,
         Err(e) => {
             error!(&format!("{:#?}", e));

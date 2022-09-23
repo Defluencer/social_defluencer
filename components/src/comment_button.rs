@@ -1,6 +1,7 @@
 #![cfg(target_arch = "wasm32")]
 
 use cid::Cid;
+use ipfs_api::IpfsService;
 
 use crate::{identification::Identification, thumbnail::Thumbnail};
 
@@ -12,11 +13,18 @@ use defluencer::{
 
 use gloo_console::error;
 
-use utils::defluencer::{ChannelContext, UserContext};
+use linked_data::comments::Comment;
+
+use utils::{
+    defluencer::{ChannelContext, UserContext},
+    ipfs::IPFSContext,
+};
 
 use ybc::{Box, Button, Control, Field, Media, MediaContent, MediaLeft, TextArea};
 
 use yew::{platform::spawn_local, prelude::*};
+
+//TODO instead of an optional callback create a Commentary Context
 
 #[derive(Properties, PartialEq)]
 pub struct Props {
@@ -24,7 +32,7 @@ pub struct Props {
     pub cid: Cid,
 
     /// Optional callback when a new comment is created
-    pub callback: Option<Callback<Cid>>,
+    pub callback: Option<Callback<(Cid, Comment)>>,
 }
 
 pub struct CommentButton {
@@ -165,15 +173,25 @@ impl CommentButton {
     fn on_create(&mut self, ctx: &Context<Self>) -> bool {
         let (context, _) = ctx
             .link()
+            .context::<IPFSContext>(Callback::noop())
+            .expect("IPFS Context");
+
+        let ipfs = context.client;
+
+        let (context, _) = ctx
+            .link()
             .context::<UserContext>(Callback::noop())
             .expect("User Context");
+
         let user = context.user;
         let origin = ctx.props().cid;
         let text = self.text.clone();
         let parent_cb = ctx.props().callback.clone();
         let done_cb = ctx.link().callback(Msg::Done);
 
-        spawn_local(publish_comment(user, origin, text, parent_cb, done_cb));
+        spawn_local(publish_comment(
+            ipfs, user, origin, text, parent_cb, done_cb,
+        ));
 
         self.loading = true;
 
@@ -188,23 +206,28 @@ impl CommentButton {
             spawn_local(add_to_channel(context.channel, cid));
         }
 
-        //TODO send comment to origin channel for aggregation
+        //TODO send comment cid to original channel for aggregation
 
         true
     }
 }
 
 async fn publish_comment(
+    ipfs: IpfsService,
     user: User<EthereumSigner>,
     origin: Cid,
     text: String,
-    parent_cb: Option<Callback<Cid>>,
+    parent_cb: Option<Callback<(Cid, Comment)>>,
     done_cb: Callback<Cid>,
 ) {
-    match user.create_comment(origin, text).await {
+    //TODO user.create_comment return Comment as well as the CID
+    match user.create_comment(origin, text, false).await {
         Ok(cid) => {
             if let Some(callback) = parent_cb {
-                callback.emit(cid);
+                match ipfs.dag_get::<&str, Comment>(cid, Some("/link")).await {
+                    Ok(dag) => callback.emit((cid, dag)),
+                    Err(e) => error!(&format!("{:#?}", e)),
+                }
             }
 
             done_cb.emit(cid);

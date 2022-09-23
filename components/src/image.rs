@@ -2,8 +2,6 @@
 
 use cid::{multibase::Base, Cid};
 
-use either::Either;
-
 use ipfs_api::IpfsService;
 
 use utils::ipfs::IPFSContext;
@@ -14,9 +12,13 @@ use linked_data::media::mime_type::MimeTyped;
 
 use gloo_console::error;
 
+//TODO use http://CID_HERE.ipfs.localhost://8080 instead of dag getting MimeTyped then the raw image bytes.
+
 #[derive(Properties, PartialEq)]
 pub struct Props {
     pub cid: Cid,
+
+    pub round: bool,
 }
 
 pub struct Image {
@@ -58,15 +60,20 @@ impl Component for Image {
         }
     }
 
-    fn view(&self, _ctx: &Context<Self>) -> Html {
+    fn view(&self, ctx: &Context<Self>) -> Html {
         html! {
-            <img src={self.object_url.clone()} />
+            <img class={ if ctx.props().round { classes!("is-rounded") } else {classes!()} }src={self.object_url.clone()} />
         }
     }
 }
 
 async fn get_image_url(ipfs: IpfsService, cid: Cid, callback: Callback<String>) {
-    let image = match ipfs.dag_get::<&str, MimeTyped>(cid, None).await {
+    let (img_res, data_res) = futures_util::join!(
+        ipfs.dag_get::<&str, MimeTyped>(cid, None),
+        ipfs.cat(cid, Some("/data"))
+    );
+
+    let image = match img_res {
         Ok(img) => img,
         Err(e) => {
             error!(&format!("{:#?}", e));
@@ -74,19 +81,12 @@ async fn get_image_url(ipfs: IpfsService, cid: Cid, callback: Callback<String>) 
         }
     };
 
-    let data = match image.data {
-        Either::Left(ipld) => {
-            let bytes = match ipfs.cat(ipld.link, Option::<&str>::None).await {
-                Ok(bytes) => bytes,
-                Err(e) => {
-                    error!(&format!("{:#?}", e));
-                    return;
-                }
-            };
-
-            bytes.to_vec()
+    let data = match data_res {
+        Ok(bytes) => bytes,
+        Err(e) => {
+            error!(&format!("{:#?}", e));
+            return;
         }
-        Either::Right(vec) => vec,
     };
 
     let url = format!(

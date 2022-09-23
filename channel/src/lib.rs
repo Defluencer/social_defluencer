@@ -46,8 +46,6 @@ pub struct Props {
 
 //TODO If live, display video
 
-//TODO display all comments too
-
 /// social.defluencer.eth/#/channel/<IPNS_HERE>
 ///
 /// A specific channel page
@@ -194,7 +192,7 @@ impl ChannelPage {
                         self.content.iter().rev().map(|&cid| {
                             html! {
                             <Box>
-                                <Thumbnail {cid} />
+                                <Thumbnail key={cid.to_string()} {cid} />
                             </Box>
                             }
                         }).collect::<Html>()

@@ -1,8 +1,16 @@
 #![cfg(target_arch = "wasm32")]
 
-use linked_data::identity::Identity;
+use std::collections::HashSet;
 
-use utils::timestamp_to_datetime;
+use defluencer::Defluencer;
+use futures_util::{
+    stream::{AbortHandle, AbortRegistration, Abortable},
+    StreamExt, TryStreamExt,
+};
+use ipfs_api::IpfsService;
+use linked_data::{identity::Identity, types::IPNSAddress};
+
+use utils::{defluencer::ChannelContext, follows::get_follow_list, timestamp_to_datetime};
 
 use cid::Cid;
 
@@ -16,10 +24,11 @@ use ybc::{
     Block, Content, ImageSize, Level, LevelItem, LevelLeft, Media, MediaContent, MediaLeft,
     MediaRight,
 };
+use yew_router::prelude::Link;
 
 use crate::{
-    comment_button::CommentButton, dag_explorer::DagExplorer, image::Image, searching::Searching,
-    share_button::ShareButton,
+    comment_button::CommentButton, dag_explorer::DagExplorer, image::Image, navbar::Route,
+    searching::Searching, share_button::ShareButton,
 };
 
 #[derive(Properties, PartialEq)]
@@ -33,11 +42,16 @@ pub struct Comment {
     comment: Option<linked_data::comments::Comment>,
 
     identity: Option<Identity>,
+
+    handle: AbortHandle,
+
+    reply: Option<Cid>,
 }
 
 pub enum Msg {
-    Comment(linked_data::comments::Comment),
+    Data(linked_data::comments::Comment),
     Identity(Identity),
+    Reply(Cid),
 }
 
 impl Component for Comment {
@@ -50,55 +64,50 @@ impl Component for Comment {
             .context::<IPFSContext>(Callback::noop())
             .expect("IPFS Context");
 
-        spawn_local({
-            let comment_cb = ctx.link().callback(Msg::Comment);
-            let identity_cb = ctx.link().callback(Msg::Identity);
-            let ipfs = context.client.clone();
-            let cid = ctx.props().cid;
+        spawn_local(get_data(
+            context.client.clone(),
+            ctx.props().cid,
+            ctx.link().callback(Msg::Data),
+            ctx.link().callback(Msg::Identity),
+        ));
 
-            async move {
-                let comment = match ipfs
-                    .dag_get::<&str, linked_data::comments::Comment>(cid, Some("/link"))
-                    .await
-                {
-                    Ok(comment) => comment,
-                    Err(e) => {
-                        error!(&format!("{:#?}", e));
-                        return;
-                    }
-                };
+        let mut follows = get_follow_list();
 
-                let cid = comment.identity.link;
-                comment_cb.emit(comment);
+        if let Some((context, _)) = ctx.link().context::<ChannelContext>(Callback::noop()) {
+            follows.insert(context.channel.get_address());
+        }
 
-                match ipfs.dag_get::<&str, Identity>(cid, None).await {
-                    Ok(id) => identity_cb.emit(id),
-                    Err(e) => error!(&format!("{:#?}", e)),
-                }
-            }
-        });
+        let (handle, regis) = AbortHandle::new_pair();
+
+        spawn_local(stream_comments(
+            context.client,
+            follows,
+            ctx.props().cid,
+            ctx.link().callback(Msg::Reply),
+            regis,
+        ));
 
         Self {
             dt: String::new(),
             comment: None,
             identity: None,
+
+            handle,
+            reply: None,
         }
     }
 
     fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
-            Msg::Comment(comment) => {
+            Msg::Data(comment) => {
                 self.dt = timestamp_to_datetime(comment.user_timestamp);
                 self.comment = Some(comment);
-
-                true
             }
-            Msg::Identity(id) => {
-                self.identity = Some(id);
-
-                true
-            }
+            Msg::Identity(id) => self.identity = Some(id),
+            Msg::Reply(cid) => self.reply = Some(cid),
         }
+
+        true
     }
 
     fn view(&self, ctx: &Context<Self>) -> Html {
@@ -111,14 +120,21 @@ impl Component for Comment {
         let comment = self.comment.as_ref().unwrap();
         let identity = self.identity.as_ref().unwrap();
 
+        let name = html! {
+            <span class="icon-text">
+                <span class="icon"><i class="fas fa-user"></i></span>
+                <span> { &identity.display_name } </span>
+            </span>
+        };
+
         html! {
         <Media>
             <MediaLeft>
             {
                 if let Some(ipld) = identity.avatar {
                     html! {
-                    <ybc::Image size={ImageSize::Is64x64} >
-                        <Image key={ipld.link.to_string()} cid={ipld.link} />
+                    <ybc::Image  size={ImageSize::Is64x64} >
+                        <Image key={ipld.link.to_string()} cid={ipld.link} round=true />
                     </ybc::Image>
                     }
                 } else {
@@ -130,10 +146,17 @@ impl Component for Comment {
                 <Level>
                     <LevelLeft>
                         <LevelItem>
-                            <span class="icon-text">
-                                <span class="icon"><i class="fas fa-user"></i></span>
-                                <span> { &identity.display_name } </span>
-                            </span>
+                        {
+                            if let Some(addr) = identity.channel_ipns {
+                                html! {
+                                    <Link<Route> to={Route::Channel{ addr: addr.into()}} >
+                                        {name}
+                                    </Link<Route>>
+                                }
+                            } else {
+                                name
+                            }
+                        }
                         </LevelItem>
                         <LevelItem>
                             <span class="icon-text">
@@ -146,6 +169,12 @@ impl Component for Comment {
                 <Content>
                     { &comment.text }
                 </Content>
+                {
+                match self.reply {
+                    Some(cid) => html!{ <Comment {cid} /> },
+                    None => html!{},
+                }
+                }
             </MediaContent>
             <MediaRight>
                 <Block>
@@ -161,6 +190,57 @@ impl Component for Comment {
                 </Level>
             </MediaRight>
         </Media>
+            }
+    }
+
+    fn destroy(&mut self, _ctx: &Context<Self>) {
+        self.handle.abort();
+    }
+}
+
+async fn get_data(
+    ipfs: IpfsService,
+    cid: Cid,
+    data_cb: Callback<linked_data::comments::Comment>,
+    id_cb: Callback<Identity>,
+) {
+    let (comment_res, id_res) = futures_util::join!(
+        ipfs.dag_get::<&str, linked_data::comments::Comment>(cid, Some("/link")),
+        ipfs.dag_get::<&str, Identity>(cid, Some("/link/identity"))
+    );
+
+    match comment_res {
+        Ok(comment) => data_cb.emit(comment),
+        Err(e) => error!(&format!("{:#?}", e)),
+    };
+
+    match id_res {
+        Ok(id) => id_cb.emit(id),
+        Err(e) => error!(&format!("{:#?}", e)),
+    }
+}
+
+async fn stream_comments(
+    ipfs: IpfsService,
+    follows: HashSet<IPNSAddress>,
+    content_cid: Cid,
+    callback: Callback<Cid>,
+    regis: AbortRegistration,
+) {
+    let defluencer = Defluencer::new(ipfs);
+
+    let stream = defluencer
+        .streaming_web_crawl(follows.into_iter())
+        .try_filter_map(|(_, channel)| async move { Ok(channel.comment_index) })
+        .map_ok(|index| defluencer.stream_content_comments(index, content_cid))
+        .try_flatten();
+
+    let mut stream = Abortable::new(stream, regis).boxed_local();
+
+    while let Some(result) = stream.next().await {
+        match result {
+            Ok(cid) => callback.emit(cid),
+            Err(e) => error!(&format!("{:#?}", e)),
         }
     }
 }

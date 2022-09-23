@@ -10,12 +10,14 @@ use ybc::{ImageSize, Level, LevelItem, LevelRight};
 use yew::{platform::spawn_local, prelude::*};
 
 use linked_data::identity::Identity;
+use yew_router::prelude::Link;
 
-use crate::image::Image;
+use crate::{image::Image, navbar::Route};
 
 #[derive(Properties, PartialEq)]
 pub struct Props {
     pub cid: Cid,
+
     pub addr: Option<String>,
 }
 
@@ -43,7 +45,7 @@ impl Component for Identification {
             let cid = ctx.props().cid;
 
             async move {
-                match ipfs.dag_get::<String, Identity>(cid, None).await {
+                match ipfs.dag_get::<&str, Identity>(cid, None).await {
                     Ok(id) => cb.emit(id),
                     Err(e) => error!(&format!("{:#?}", e)),
                 }
@@ -68,13 +70,11 @@ impl Component for Identification {
             Some(identity) => {
                 let img = match identity.avatar {
                     Some(avatar) => html! {
-                    <LevelItem>
                         <ybc::Image size={ImageSize::Is64x64} >
-                            <Image cid={avatar.link} />
+                            <Image cid={avatar.link} round=true />
                         </ybc::Image>
-                    </LevelItem>
                     },
-                    None => html!(),
+                    None => html!(), //TODO default avatar
                 };
 
                 let check = match (identity.addr.as_ref(), ctx.props().addr.as_ref()) {
@@ -88,20 +88,32 @@ impl Component for Identification {
                     _ => html!(),
                 };
 
-                html! {
-                <Level>
-                    <LevelRight>
-                        {img}
-                        <LevelItem>
-                            <span class="icon-text">
-                                <span class="icon"><i class="fas fa-user"></i></span>
-                                <span> { &identity.display_name } </span>
-                                {check}
-                            </span>
-                        </LevelItem>
-                    </LevelRight>
-                </Level>
+                let core = html! {
+                    <Level>
+                        <LevelRight>
+                            <LevelItem>
+                                {img}
+                            </LevelItem>
+                            <LevelItem>
+                                <span class="icon-text">
+                                    <span class="icon"><i class="fas fa-user"></i></span>
+                                    <span> { &identity.display_name } </span>
+                                    {check}
+                                </span>
+                            </LevelItem>
+                        </LevelRight>
+                    </Level>
+                };
+
+                if let Some(addr) = identity.channel_ipns {
+                    return html! {
+                        <Link<Route> to={Route::Channel{ addr: addr.into()}} >
+                            {core}
+                        </Link<Route>>
+                    };
                 }
+
+                core
             }
             None => html! {
                 <span class="bulma-loader-mixin"></span>
