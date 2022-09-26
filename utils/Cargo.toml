@@ -4,6 +4,8 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+yew = { git = "https://github.com/SionoiS/yew", branch = "remove-tokio", default-features = false, features = ["csr"] }
+
 defluencer = { git = "https://github.com/Defluencer/rust-defluencer", branch = "develop" }
 linked-data = { git = "https://github.com/Defluencer/rust-defluencer", branch = "develop" }
 ipfs-api = { git = "https://github.com/Defluencer/rust-defluencer", branch = "develop" }

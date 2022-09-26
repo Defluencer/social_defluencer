@@ -10,7 +10,8 @@ use futures_util::{
 use linked_data::{comments::Comment, identity::Identity, types::IPNSAddress};
 
 use utils::{
-    defluencer::ChannelContext, follows::get_follow_list, ipfs::IPFSContext, timestamp_to_datetime,
+    commentary::CommentaryContext, defluencer::ChannelContext, follows::get_follow_list,
+    ipfs::IPFSContext, timestamp_to_datetime,
 };
 
 use yew::{platform::spawn_local, prelude::*};
@@ -57,6 +58,8 @@ pub struct ContentPage {
 
     identity_cb: Callback<(Cid, Identity)>,
     identities: HashMap<Cid, Identity>,
+
+    commentary: CommentaryContext,
 }
 
 pub enum Msg {
@@ -102,6 +105,10 @@ impl Component for ContentPage {
 
         let comment_cb = ctx.link().callback(Msg::Comment);
 
+        let commentary = CommentaryContext {
+            callback: comment_cb.clone(),
+        };
+
         Self {
             media: None,
             dt: String::new(),
@@ -115,6 +122,8 @@ impl Component for ContentPage {
 
             identity_cb,
             identities: HashMap::default(),
+
+            commentary,
         }
     }
 
@@ -206,19 +215,19 @@ impl Component for ContentPage {
         };
 
         html! {
-        <>
-        <NavigationBar />
-        <Section>
-            <Container>
-            { content }
-            </Container>
-        </Section>
-        <Section>
-            <Container>
-                { self.render_comments(ctx.props().cid)}
-            </Container>
-        </Section>
-        </>
+        <ContextProvider<CommentaryContext> context={self.commentary.clone()} >
+            <NavigationBar />
+            <Section>
+                <Container>
+                { content }
+                </Container>
+            </Section>
+            <Section>
+                <Container>
+                    { self.render_comments(ctx.props().cid)}
+                </Container>
+            </Section>
+        </ContextProvider<CommentaryContext>>
         }
     }
 

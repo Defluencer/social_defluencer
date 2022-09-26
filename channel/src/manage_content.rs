@@ -394,7 +394,7 @@ async fn create_micro_post(
     callback: Callback<Cid>,
 ) {
     let cid = match user.create_micro_blog_post(text, false).await {
-        Ok(cid) => cid,
+        Ok((cid, _)) => cid,
         Err(e) => {
             error!(&format!("{:#?}", e));
             return;
@@ -416,7 +416,7 @@ async fn create_video_post(
     callback: Callback<Cid>,
 ) {
     let cid = match user.create_video_post(title, cid, image, false).await {
-        Ok(cid) => cid,
+        Ok((cid, _)) => cid,
         Err(e) => {
             error!(&format!("{:#?}", e));
             return;
@@ -438,7 +438,7 @@ async fn create_article(
     callback: Callback<Cid>,
 ) {
     let cid = match user.create_blog_post(title, image, markdown, false).await {
-        Ok(cid) => cid,
+        Ok((cid, _)) => cid,
         Err(e) => {
             error!(&format!("{:#?}", e));
             return;

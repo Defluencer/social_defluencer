@@ -1,7 +1,6 @@
 #![cfg(target_arch = "wasm32")]
 
 use cid::Cid;
-use ipfs_api::IpfsService;
 
 use crate::{identification::Identification, thumbnail::Thumbnail};
 
@@ -16,23 +15,18 @@ use gloo_console::error;
 use linked_data::comments::Comment;
 
 use utils::{
+    commentary::CommentaryContext,
     defluencer::{ChannelContext, UserContext},
-    ipfs::IPFSContext,
 };
 
 use ybc::{Box, Button, Control, Field, Media, MediaContent, MediaLeft, TextArea};
 
 use yew::{platform::spawn_local, prelude::*};
 
-//TODO instead of an optional callback create a Commentary Context
-
 #[derive(Properties, PartialEq)]
 pub struct Props {
     /// Signed link to media Cid
     pub cid: Cid,
-
-    /// Optional callback when a new comment is created
-    pub callback: Option<Callback<(Cid, Comment)>>,
 }
 
 pub struct CommentButton {
@@ -173,25 +167,22 @@ impl CommentButton {
     fn on_create(&mut self, ctx: &Context<Self>) -> bool {
         let (context, _) = ctx
             .link()
-            .context::<IPFSContext>(Callback::noop())
-            .expect("IPFS Context");
-
-        let ipfs = context.client;
-
-        let (context, _) = ctx
-            .link()
             .context::<UserContext>(Callback::noop())
             .expect("User Context");
 
         let user = context.user;
+
         let origin = ctx.props().cid;
         let text = self.text.clone();
-        let parent_cb = ctx.props().callback.clone();
+
+        let parent_cb = ctx
+            .link()
+            .context::<CommentaryContext>(Callback::noop())
+            .map(|(context, _)| context.callback);
+
         let done_cb = ctx.link().callback(Msg::Done);
 
-        spawn_local(publish_comment(
-            ipfs, user, origin, text, parent_cb, done_cb,
-        ));
+        spawn_local(publish_comment(user, origin, text, parent_cb, done_cb));
 
         self.loading = true;
 
@@ -213,21 +204,16 @@ impl CommentButton {
 }
 
 async fn publish_comment(
-    ipfs: IpfsService,
     user: User<EthereumSigner>,
     origin: Cid,
     text: String,
     parent_cb: Option<Callback<(Cid, Comment)>>,
     done_cb: Callback<Cid>,
 ) {
-    //TODO user.create_comment return Comment as well as the CID
     match user.create_comment(origin, text, false).await {
-        Ok(cid) => {
+        Ok((cid, comment)) => {
             if let Some(callback) = parent_cb {
-                match ipfs.dag_get::<&str, Comment>(cid, Some("/link")).await {
-                    Ok(dag) => callback.emit((cid, dag)),
-                    Err(e) => error!(&format!("{:#?}", e)),
-                }
+                callback.emit((cid, comment));
             }
 
             done_cb.emit(cid);
