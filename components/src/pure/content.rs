@@ -1,20 +1,27 @@
 #![cfg(target_arch = "wasm32")]
 
-use linked_data::{identity::Identity, media::Media};
+use linked_data::{identity::Identity, media::Media, types::IPLDLink};
 
-use utils::timestamp_to_datetime;
+use utils::{defluencer::UserContext, timestamp_to_datetime};
 
 use cid::Cid;
 
 use yew::prelude::*;
 
-use ybc::{Block, ImageSize, Level, LevelItem, LevelLeft, MediaContent, MediaLeft, MediaRight};
+use ybc::{
+    Block, HeaderSize, ImageSize, Level, LevelItem, LevelLeft, LevelRight, MediaContent, MediaLeft,
+    MediaRight, Title,
+};
 
 use yew_router::prelude::Link;
 
 use crate::{
-    comment_button::CommentButton, dag_explorer::DagExplorer, md_renderer::Markdown, navbar::Route,
-    pure::IPFSImage, share_button::ShareButton, video_player::VideoPlayer,
+    comment_button::CommentButton,
+    md_renderer::Markdown,
+    pure::{DagExplorer, IPFSImage, Thumbnail},
+    share_button::ShareButton,
+    video_player::VideoPlayer,
+    Route,
 };
 
 #[derive(Properties, PartialEq)]
@@ -31,6 +38,9 @@ pub struct ContentProps {
 
 #[function_component(Content)]
 pub fn pure_content(props: &ContentProps) -> Html {
+    let user_addr: Option<IPLDLink> =
+        use_context::<UserContext>().map(|context| context.user.get_identity().into());
+
     let ContentProps {
         cid,
         media,
@@ -46,19 +56,15 @@ pub fn pure_content(props: &ContentProps) -> Html {
         </span>
     };
 
-    if let Some(addr) = identity.channel_ipns {
-        name = html! {
-            <Link<Route> to={Route::Channel{ addr: addr.into()}} >
-                {name}
-            </Link<Route>>
-        };
+    if Some(media.identity()) != user_addr {
+        if let Some(addr) = identity.channel_ipns {
+            name = html! {
+                <Link<Route> to={Route::Channel{ addr: addr.into()}} >
+                    {name}
+                </Link<Route>>
+            };
+        }
     }
-
-    let avatar = if let Some(ipld) = identity.avatar {
-        html! { <IPFSImage cid={ipld.link} size={ImageSize::Is64x64} rounded=true /> }
-    } else {
-        html!()
-    };
 
     let content = match media {
         Media::MicroBlog(blog) => html! {<ybc::Content>{&blog.content}</ybc::Content>},
@@ -74,11 +80,15 @@ pub fn pure_content(props: &ContentProps) -> Html {
 
             html! {
             <>
-                <VideoPlayer {cid}/>
+                <Block>
+                    <VideoPlayer {cid}/>
+                </Block>
                 <Level>
                     <LevelLeft>
                         <LevelItem>
-                            {&video.title }
+                            <Title classes={classes!("has-text-centered")} size={HeaderSize::Is4} >
+                                {&video.title }
+                            </Title>
                         </LevelItem>
                         <LevelItem>
                             <span class="icon-text">
@@ -99,7 +109,9 @@ pub fn pure_content(props: &ContentProps) -> Html {
     html! {
     <ybc::Media>
         <MediaLeft>
-            { avatar }
+        if let Some(ipld) = identity.avatar {
+            <IPFSImage cid={ipld.link} size={ImageSize::Is64x64} rounded=true />
+        }
         </MediaLeft>
         <MediaContent>
             <Level>
@@ -107,29 +119,37 @@ pub fn pure_content(props: &ContentProps) -> Html {
                     <LevelItem>
                         { name }
                     </LevelItem>
+                </LevelLeft>
+                <LevelRight>
                     <LevelItem>
                         <span class="icon-text">
                             <span class="icon"><i class="fas fa-clock"></i></span>
                             <span> { dt } </span>
                         </span>
                     </LevelItem>
-                </LevelLeft>
+                </LevelRight>
             </Level>
             { content }
+            <Level>
+                <LevelLeft>
+                    <LevelItem>
+                        <CommentButton {cid} >
+                            <Thumbnail key={cid.to_string()} {cid} media={media.clone()} identity={identity.clone()} />
+                        </CommentButton>
+                    </LevelItem>
+                    if Some(media.identity()) != user_addr {
+                        <LevelItem>
+                            <ShareButton {cid} >
+                                <Thumbnail key={cid.to_string()} {cid} media={media.clone()} identity={identity.clone()} />
+                            </ShareButton>
+                        </LevelItem>
+                    }
+                </LevelLeft>
+            </Level>
             { children.clone() }
         </MediaContent>
         <MediaRight>
-            <Block>
-                <DagExplorer {cid} />
-            </Block>
-            <Level>
-                <LevelItem>
-                    <CommentButton {cid} />
-                </LevelItem>
-                <LevelItem>
-                    <ShareButton {cid} />
-                </LevelItem>
-            </Level>
+            <DagExplorer key={cid.to_string()} {cid} />
         </MediaRight>
     </ybc::Media>
         }

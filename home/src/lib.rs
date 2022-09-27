@@ -2,7 +2,7 @@
 
 use yew::{function_component, html, Html};
 
-use components::navbar::NavigationBar;
+use components::pure::NavigationBar;
 
 //? social.defluencer.eth/#/home/
 /// The App Landing Page.

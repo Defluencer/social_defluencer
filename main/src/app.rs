@@ -11,7 +11,7 @@ use home::HomePage;
 use live::LivePage;
 use settings::SettingPage;
 
-use components::navbar::Route;
+use components::Route;
 
 use utils::{
     defluencer::{ChannelContext, UserContext},

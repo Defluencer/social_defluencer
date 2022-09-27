@@ -20,7 +20,7 @@ use cid::Cid;
 
 use gloo_console::{error, info};
 
-use components::{navbar::NavigationBar, pure::Content};
+use components::pure::{Content, NavigationBar, Searching};
 
 use ipfs_api::IpfsService;
 
@@ -31,8 +31,6 @@ use defluencer::crypto::signed_link::SignedLink;
 use linked_data::media::Media;
 
 use ybc::{Container, Section};
-
-use components::searching::Searching;
 
 #[derive(Properties, PartialEq)]
 pub struct Props {
@@ -154,11 +152,13 @@ impl Component for ContentPage {
                 false
             }
             Msg::Media((media, addr)) => {
-                spawn_local(get_identity(
-                    ipfs,
-                    media.identity().link,
-                    self.identity_cb.clone(),
-                ));
+                if !self.identities.contains_key(&media.identity().link) {
+                    spawn_local(get_identity(
+                        ipfs,
+                        media.identity().link,
+                        self.identity_cb.clone(),
+                    ));
+                }
 
                 self.dt = timestamp_to_datetime(media.user_timestamp());
                 self.media = Some(media);
@@ -180,23 +180,19 @@ impl Component for ContentPage {
                     ));
                 }
 
-                spawn_local(get_identity(
-                    ipfs,
-                    comment.identity.link,
-                    self.identity_cb.clone(),
-                ));
+                if !self.identities.contains_key(&comment.identity.link) {
+                    spawn_local(get_identity(
+                        ipfs,
+                        comment.identity.link,
+                        self.identity_cb.clone(),
+                    ));
+                }
 
                 self.comments.insert(cid, comment);
 
                 true
             }
-            Msg::Identity((cid, identity)) => {
-                if self.identities.insert(cid, identity).is_some() {
-                    return false;
-                }
-
-                true
-            }
+            Msg::Identity((cid, identity)) => self.identities.insert(cid, identity).is_none(),
         }
     }
 

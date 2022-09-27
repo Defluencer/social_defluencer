@@ -34,3 +34,4 @@ web-sys = { version = "0.3.59", default-features = false, features = [
     "TimeRanges",
     "Performance"
 ]}
+words-count = { version = "0.1", default-features = false, features = [] }

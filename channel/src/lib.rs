@@ -2,37 +2,29 @@
 
 mod manage_content;
 
+use linked_data::identity::Identity;
+
 use manage_content::ManageContent;
 
-use std::collections::VecDeque;
+use std::collections::{HashMap, HashSet, VecDeque};
 
-use components::{
-    identification::Identification, navbar::NavigationBar, searching::Searching,
-    thumbnail::Thumbnail,
-};
+use components::pure::{DagExplorer, IPFSImage, Thumbnail};
 
-use defluencer::Defluencer;
+use components::pure::{NavigationBar, Searching};
 
-use futures_util::{
-    stream::{AbortHandle, AbortRegistration, Abortable},
-    StreamExt,
-};
+use futures_util::stream::AbortHandle;
 
-use gloo_console::{error, info};
+#[cfg(debug_assertions)]
+use gloo_console::info;
 
-use ipfs_api::IpfsService;
-
-use linked_data::{
-    channel::ChannelMetadata,
-    types::{IPLDLink, IPNSAddress},
-};
+use linked_data::{channel::ChannelMetadata, media::Media};
 
 use utils::{
     defluencer::{ChannelContext, UserContext},
     ipfs::IPFSContext,
 };
 
-use ybc::{Box, Button, Container, Section};
+use ybc::{Box, Button, Container, ImageSize, Level, LevelItem, LevelLeft, LevelRight, Section};
 
 use yew::{platform::spawn_local, prelude::*};
 
@@ -44,7 +36,7 @@ pub struct Props {
     pub addr: Cid,
 }
 
-//TODO If live, display video
+//TODO find a way to tell if live, then display video
 
 /// social.defluencer.eth/#/channel/<IPNS_HERE>
 ///
@@ -55,8 +47,11 @@ pub struct ChannelPage {
 
     metadata: Option<ChannelMetadata>,
 
-    content: VecDeque<Cid>,
-    content_cb: Callback<Cid>,
+    content: VecDeque<(Cid, Media)>,
+    content_cb: Callback<(Cid, Media)>,
+
+    identity_cb: Callback<(Cid, Identity)>,
+    identities: HashMap<Cid, Identity>,
 
     own_channel: bool,
 
@@ -66,7 +61,8 @@ pub struct ChannelPage {
 
 pub enum Msg {
     Update(ChannelMetadata),
-    Content(Cid),
+    Content((Cid, Media)),
+    Identity((Cid, Identity)),
     Follow,
 }
 
@@ -83,15 +79,15 @@ impl Component for ChannelPage {
             .context::<IPFSContext>(Callback::noop())
             .expect("IPFS Context");
 
-        spawn_local(get_channel(
+        spawn_local(utils::r#async::get_channels(
             context.client.clone(),
             ctx.link().callback(Msg::Update),
-            ctx.props().addr.into(),
+            HashSet::from([ctx.props().addr.into()]),
         ));
 
         let (sub_handle, regis) = AbortHandle::new_pair();
 
-        spawn_local(channel_subscribe(
+        spawn_local(utils::r#async::channel_subscribe(
             context.client.clone(),
             ctx.link().callback(Msg::Update),
             ctx.props().addr.into(),
@@ -99,6 +95,7 @@ impl Component for ChannelPage {
         ));
 
         let content_cb = ctx.link().callback(Msg::Content);
+        let identity_cb = ctx.link().callback(Msg::Identity);
 
         let mut channel = false;
 
@@ -131,6 +128,9 @@ impl Component for ChannelPage {
             content: Default::default(),
             content_cb,
 
+            identities: Default::default(),
+            identity_cb,
+
             own_channel: channel,
 
             follow_cb,
@@ -144,7 +144,8 @@ impl Component for ChannelPage {
 
         match msg {
             Msg::Update(metadata) => self.on_channel_update(ctx, metadata),
-            Msg::Content(cid) => self.on_content(cid),
+            Msg::Content((cid, media)) => self.on_content(ctx, cid, media),
+            Msg::Identity((cid, identity)) => self.identities.insert(cid, identity).is_none(),
             Msg::Follow => self.on_follow(ctx),
         }
     }
@@ -177,26 +178,63 @@ impl ChannelPage {
         <>
             <NavigationBar />
             <Section>
-                <Identification cid={meta.identity.link} />
-                <Button onclick={self.follow_cb.clone()} >
-                {
-                    if self.following {"Unfollow"} else {"Follow"}
-                }
-                </Button>
                 <Container>
+                if let Some(identity) = self.identities.get(&meta.identity.link) {
+                    //TODO display channel branding and general info
+                    <Level>
+                        <LevelLeft>
+                            if let Some(avatar) = identity.avatar {
+                                <LevelItem>
+                                    <IPFSImage cid={avatar.link} size={ImageSize::Is64x64} rounded=true />
+                                </LevelItem>
+                            }
+                            <LevelItem>
+                                <span class="icon-text">
+                                    <span class="icon"><i class="fas fa-user"></i></span>
+                                    <span> { &identity.display_name } </span>
+                                </span>
+                            </LevelItem>
+                            <LevelItem>
+                                <Button onclick={self.follow_cb.clone()} >
+                                {
+                                    if self.following {"Unfollow"} else {"Follow"}
+                                }
+                                </Button>
+                            </LevelItem>
+                        </LevelLeft>
+                        <LevelRight>
+                            <DagExplorer key={meta.identity.link.to_string()} cid={meta.identity.link} />
+                        </LevelRight>
+                    </Level>
                     if self.own_channel
                     {
                         <ManageContent addr={ctx.props().addr} />
                     }
-                    {
-                        self.content.iter().rev().map(|&cid| {
-                            html! {
+                }
+                </Container>
+            </Section>
+            <Section>
+                <Container>
+                {
+                    self.content
+                        .iter()
+                        .filter_map(|(cid, media)| {
+                            let cid = *cid;
+                            let media = media.clone();
+
+                            let identity = match self.identities.get(&media.identity().link) {
+                                Some(id) => id.clone(),
+                                None => return None,
+                            };
+
+                            return Some(html! {
                             <Box>
-                                <Thumbnail key={cid.to_string()} {cid} />
+                                <Thumbnail key={cid.to_string()} {cid} {media} {identity} />
                             </Box>
-                            }
-                        }).collect::<Html>()
-                    }
+                            });
+                        })
+                        .collect::<Html>()
+                }
                 </Container>
             </Section>
         </>
@@ -207,7 +245,11 @@ impl ChannelPage {
         html! {
         <>
             <NavigationBar />
-            <Searching />
+            <Section>
+                <Container>
+                    <Searching />
+                </Container>
+            </Section>
         </>
         }
     }
@@ -217,6 +259,12 @@ impl ChannelPage {
             return false;
         }
 
+        let (context, _) = ctx
+            .link()
+            .context::<IPFSContext>(Callback::noop())
+            .expect("IPFS Context");
+        let ipfs = context.client;
+
         if let Some(index) = metadata.content_index {
             if let Some(handle) = self.stream_handle.take() {
                 handle.abort();
@@ -224,15 +272,10 @@ impl ChannelPage {
 
             self.content.clear();
 
-            let (context, _) = ctx
-                .link()
-                .context::<IPFSContext>(Callback::noop())
-                .expect("IPFS Context");
-
             let (stream_handle, regis) = AbortHandle::new_pair();
 
-            spawn_local(stream_content(
-                context.client.clone(),
+            spawn_local(utils::r#async::stream_content(
+                ipfs.clone(),
                 self.content_cb.clone(),
                 index,
                 regis,
@@ -241,19 +284,36 @@ impl ChannelPage {
             self.stream_handle = Some(stream_handle);
         }
 
+        if !self.identities.contains_key(&metadata.identity.link) {
+            spawn_local(utils::r#async::get_identity(
+                ipfs,
+                metadata.identity.link,
+                self.identity_cb.clone(),
+            ));
+        }
+
         self.metadata = Some(metadata);
 
         true
     }
 
-    fn on_content(&mut self, cid: Cid) -> bool {
-        if self.content.len() < 50 {
-            self.content.push_front(cid);
+    fn on_content(&mut self, ctx: &Context<Self>, cid: Cid, media: Media) -> bool {
+        if !self.identities.contains_key(&media.identity().link) {
+            let (context, _) = ctx
+                .link()
+                .context::<IPFSContext>(Callback::noop())
+                .expect("IPFS Context");
 
-            return true;
+            spawn_local(utils::r#async::get_identity(
+                context.client,
+                media.identity().link,
+                self.identity_cb.clone(),
+            ));
         }
 
-        false
+        self.content.push_back((cid, media));
+
+        true
     }
 
     fn on_follow(&mut self, ctx: &Context<Self>) -> bool {
@@ -270,81 +330,5 @@ impl ChannelPage {
         self.following = !self.following;
 
         true
-    }
-}
-
-async fn get_channel(ipfs: IpfsService, callback: Callback<ChannelMetadata>, addr: IPNSAddress) {
-    let cid = match ipfs.name_resolve(addr.into()).await {
-        Ok(cid) => cid,
-        Err(e) => {
-            error!(&format!("{:#?}", e));
-            return;
-        }
-    };
-
-    match ipfs.dag_get::<&str, ChannelMetadata>(cid, None).await {
-        Ok(dag) => callback.emit(dag),
-        Err(e) => error!(&format!("{:#?}", e)),
-    }
-}
-
-async fn channel_subscribe(
-    ipfs: IpfsService,
-    callback: Callback<ChannelMetadata>,
-    addr: IPNSAddress,
-    regis: AbortRegistration,
-) {
-    let defluencer = Defluencer::new(ipfs.clone());
-
-    let stream = defluencer
-        .subscribe_channel_updates(addr)
-        .map(|result| {
-            let ipfs = ipfs.clone();
-
-            async move {
-                match result {
-                    Ok(cid) => match ipfs.dag_get::<&str, ChannelMetadata>(cid, None).await {
-                        Ok(dag) => Ok(dag),
-                        Err(e) => Err(e.into()),
-                    },
-                    Err(e) => Err(e),
-                }
-            }
-        })
-        .buffer_unordered(2);
-
-    let mut stream = Abortable::new(stream, regis).boxed_local();
-
-    while let Some(result) = stream.next().await {
-        match result {
-            Ok(dag) => callback.emit(dag),
-            Err(e) => {
-                error!(&format!("{:#?}", e));
-                continue;
-            }
-        }
-    }
-}
-
-async fn stream_content(
-    ipfs: IpfsService,
-    callback: Callback<Cid>,
-    index: IPLDLink,
-    regis: AbortRegistration,
-) {
-    let defluencer = Defluencer::new(ipfs.clone());
-
-    let stream = defluencer.stream_content_rev_chrono(index).take(50);
-
-    let mut stream = Abortable::new(stream, regis).boxed_local();
-
-    while let Some(result) = stream.next().await {
-        match result {
-            Ok(cid) => callback.emit(cid),
-            Err(e) => {
-                error!(&format!("{:#?}", e));
-                continue;
-            }
-        }
     }
 }

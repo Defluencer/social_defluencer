@@ -2,8 +2,6 @@
 
 use cid::Cid;
 
-use crate::thumbnail::Thumbnail;
-
 use defluencer::channel::{local::LocalUpdater, Channel};
 
 use gloo_console::error;
@@ -18,6 +16,9 @@ use yew::{platform::spawn_local, prelude::*};
 pub struct Props {
     /// Signed link to media Cid
     pub cid: Cid,
+
+    #[prop_or_default]
+    pub children: Children,
 }
 
 pub struct ShareButton {
@@ -65,24 +66,14 @@ impl Component for ShareButton {
     }
 
     fn view(&self, ctx: &Context<Self>) -> Html {
-        if self.channel.is_none() {
-            return html! {
-            <Button disabled={true} >
-                <span class="icon">
-                    <i class="fa-solid fa-reply"></i>
-                </span>
-            </Button>
-            };
-        }
-
         html! {
         <>
-            <Button classes={classes!("is-outlined")} onclick={self.modal_cb.clone()} >
-                <span class="icon">
-                    <i class="fa-solid fa-reply"></i>
-                </span>
-            </Button>
-            { self.render_modal(ctx) }
+        <Button classes={classes!("is-outlined")} onclick={self.modal_cb.clone()} disabled={self.channel.is_none()} >
+            <span class="icon">
+                <i class="fa-solid fa-reply"></i>
+            </span>
+        </Button>
+        { self.render_modal(ctx) }
         </>
         }
     }
@@ -94,7 +85,7 @@ impl ShareButton {
             <div class="modal-background" onclick={self.modal_cb.clone()} ></div>
             <div class="modal-content">
                 <Box>
-                    <Thumbnail cid={ctx.props().cid} />
+                    { ctx.props().children.clone() }
                 </Box>
                 <Box>
                     <Button onclick={self.share_cb.clone()} >

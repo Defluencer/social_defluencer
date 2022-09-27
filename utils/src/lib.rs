@@ -1,5 +1,6 @@
 #![cfg(target_arch = "wasm32")]
 
+pub mod r#async;
 pub mod commentary;
 pub mod defluencer;
 pub mod follows;

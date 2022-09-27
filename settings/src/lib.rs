@@ -18,7 +18,7 @@ use wallet::WalletSettings;
 
 use identity::IdentitySettings;
 
-use components::navbar::NavigationBar;
+use components::pure::NavigationBar;
 
 #[derive(Properties, PartialEq)]
 pub struct SettingPageProps {

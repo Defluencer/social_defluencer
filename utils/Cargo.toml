@@ -12,6 +12,7 @@ ipfs-api = { git = "https://github.com/Defluencer/rust-defluencer", branch = "de
 
 chrono = { version = "0.4", default-features = false, features = [] }
 cid = { version = "0.8", default-features = false, features = ["std"] }
+futures-util = { version = "0.3", default-features = false, features = [] }
 gloo-console = { version = "0.2", default-features = false, features = [] }
 gloo-storage = { version ="0.2", default-features = false, features = [] }
 hex = { version = "0.4", default-features = false, features = [] }

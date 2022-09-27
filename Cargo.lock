@@ -256,6 +256,7 @@ dependencies = [
  "utils",
  "wasm-bindgen",
  "web-sys",
+ "words-count",
  "ybc",
  "yew",
  "yew-router",
@@ -2444,6 +2445,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "099b7128301d285f79ddd55b9a83d5e6b9e97c92e0ea0daebee7263e932de992"
 
 [[package]]
+name = "unicode-blocks"
+version = "0.1.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "588aff0737b18e4172b3b827fac917e10b955df566a78f701d25cca354c65b73"
+
+[[package]]
 name = "unicode-ident"
 version = "1.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2488,6 +2495,7 @@ dependencies = [
  "chrono",
  "cid",
  "defluencer",
+ "futures-util",
  "gloo-console",
  "gloo-storage",
  "hex",
@@ -2712,6 +2720,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "80d0f4e272c85def139476380b12f9ac60926689dd2e01d4923222f40580869d"
 dependencies = [
  "winapi",
+]
+
+[[package]]
+name = "words-count"
+version = "0.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0e6cf552c3850c9bd810bed61308c516469e4aba6643282018bee2802f79086b"
+dependencies = [
+ "unicode-blocks",
 ]
 
 [[package]]

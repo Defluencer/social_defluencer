@@ -1,23 +1,17 @@
 #![cfg(target_arch = "wasm32")]
 
-use std::collections::HashSet;
+use std::collections::HashMap;
 
 use cid::Cid;
 
-use components::{navbar::NavigationBar, thumbnail::Thumbnail};
+use components::pure::{NavigationBar, Thumbnail};
 
-use defluencer::Defluencer;
+use futures_util::stream::AbortHandle;
 
-use futures_util::{
-    stream::{AbortHandle, AbortRegistration, FuturesUnordered, SelectAll},
-    StreamExt, TryStreamExt,
-};
+#[cfg(debug_assertions)]
+use gloo_console::info;
 
-use gloo_console::{error, info};
-
-use ipfs_api::IpfsService;
-
-use linked_data::{channel::ChannelMetadata, media::Media, types::IPNSAddress};
+use linked_data::{channel::ChannelMetadata, identity::Identity, media::Media};
 
 use utils::ipfs::IPFSContext;
 
@@ -27,16 +21,25 @@ use yew::{platform::spawn_local, prelude::*};
 
 /// social.defluencer.eth/#/feed/
 ///
-/// The Personal Feed Page.
+/// The Personal Feed Page display all followed channel content
 pub struct FeedPage {
-    handle: AbortHandle,
+    //channels: Vec<ChannelMetadata>,
+    handles: Vec<AbortHandle>,
 
-    set: HashSet<Cid>,
-    content: Vec<(Cid, Media)>,
+    content_cb: Callback<(Cid, Media)>,
+    content: HashMap<Cid, Media>,
+
+    /// Media Cid sorted by timestamps.
+    content_order: Vec<Cid>,
+
+    identity_cb: Callback<(Cid, Identity)>,
+    identities: HashMap<Cid, Identity>,
 }
 
 pub enum Msg {
-    Media((Cid, Media)),
+    Channel(ChannelMetadata),
+    Content((Cid, Media)),
+    Identity((Cid, Identity)),
 }
 
 impl Component for FeedPage {
@@ -52,32 +55,37 @@ impl Component for FeedPage {
             .context::<IPFSContext>(Callback::noop())
             .expect("IPFS Context");
 
-        let list = utils::follows::get_follow_list();
+        let set = utils::follows::get_follow_list();
 
-        let (handle, regis) = AbortHandle::new_pair();
-
-        spawn_local(aggregate(
-            context.client,
-            list.into_iter(),
-            0,
-            50,
-            ctx.link().callback(Msg::Media),
-            regis,
+        spawn_local(utils::r#async::get_channels(
+            context.client.clone(),
+            ctx.link().callback(Msg::Channel),
+            set,
         ));
 
+        let content_cb = ctx.link().callback(Msg::Content);
+        let identity_cb = ctx.link().callback(Msg::Identity);
+
         Self {
-            handle,
-            set: Default::default(),
+            handles: Default::default(),
+
+            content_cb,
             content: Default::default(),
+            content_order: Default::default(),
+
+            identity_cb,
+            identities: Default::default(),
         }
     }
 
-    fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool {
+    fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
         #[cfg(debug_assertions)]
         info!("Feed Page Update");
 
         match msg {
-            Msg::Media((cid, media)) => self.on_media(cid, media),
+            Msg::Channel(meta) => self.on_channel(ctx, meta),
+            Msg::Content((cid, media)) => self.on_content(ctx, cid, media),
+            Msg::Identity((cid, identity)) => self.identities.insert(cid, identity).is_none(),
         }
     }
 
@@ -91,10 +99,17 @@ impl Component for FeedPage {
         <Section>
             <Container>
             {
-                self.content.iter().rev().map(|&(cid, _)| {
-                    html! {
-                        <Thumbnail key={cid.to_string()} {cid} />
-                    }
+                self.content_order.iter().rev().filter_map(|&cid| {
+                    let media = self.content.get(&cid).unwrap().clone();
+
+                    let identity = match self.identities.get(&media.identity().link) {
+                        Some(id) => id.clone(),
+                        None => return None,
+                    };
+
+                    Some(html! {
+                        <Thumbnail key={cid.to_string()} {cid} {media} {identity} />
+                    })
                 }).collect::<Html>()
             }
             </Container>
@@ -107,28 +122,81 @@ impl Component for FeedPage {
         #[cfg(debug_assertions)]
         info!("Feed Page Destroy");
 
-        self.handle.abort();
+        for handle in &self.handles {
+            handle.abort();
+        }
     }
 }
 
 impl FeedPage {
-    fn on_media(&mut self, cid: Cid, media: Media) -> bool {
-        if !self.set.insert(cid) {
+    fn on_channel(&mut self, ctx: &Context<Self>, metadata: ChannelMetadata) -> bool {
+        let (context, _) = ctx
+            .link()
+            .context::<IPFSContext>(Callback::noop())
+            .expect("IPFS Context");
+        let ipfs = context.client;
+
+        if let Some(index) = metadata.content_index {
+            let (handle, regis) = AbortHandle::new_pair();
+
+            spawn_local(utils::r#async::stream_content(
+                ipfs.clone(),
+                self.content_cb.clone(),
+                index,
+                regis,
+            ));
+
+            self.handles.push(handle);
+        }
+
+        if !self.identities.contains_key(&metadata.identity.link) {
+            spawn_local(utils::r#async::get_identity(
+                ipfs,
+                metadata.identity.link,
+                self.identity_cb.clone(),
+            ));
+        }
+
+        false
+    }
+
+    fn on_content(&mut self, ctx: &Context<Self>, cid: Cid, media: Media) -> bool {
+        if self.content.contains_key(&cid) {
             return false;
         }
 
+        if !self.identities.contains_key(&media.identity().link) {
+            let (context, _) = ctx
+                .link()
+                .context::<IPFSContext>(Callback::noop())
+                .expect("IPFS Context");
+
+            spawn_local(utils::r#async::get_identity(
+                context.client,
+                media.identity().link,
+                self.identity_cb.clone(),
+            ));
+        }
+
         let index = self
-            .content
-            .binary_search_by(|(_, probe)| probe.user_timestamp().cmp(&media.user_timestamp()))
+            .content_order
+            .binary_search_by(|cid| {
+                self.content
+                    .get(&cid)
+                    .unwrap()
+                    .user_timestamp()
+                    .cmp(&media.user_timestamp())
+            })
             .unwrap_or_else(|x| x);
 
-        self.content.insert(index, (cid, media));
+        self.content_order.insert(index, cid);
+        self.content.insert(cid, media);
 
         true
     }
 }
 
-async fn aggregate(
+/* async fn aggregate(
     ipfs: IpfsService,
     addresses: impl Iterator<Item = IPNSAddress>,
     page_index: usize,
@@ -236,4 +304,4 @@ async fn aggregate(
             complete => return,
         }
     }
-}
+} */

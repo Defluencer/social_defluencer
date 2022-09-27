@@ -2,8 +2,6 @@
 
 use cid::Cid;
 
-use crate::{identification::Identification, thumbnail::Thumbnail};
-
 use defluencer::{
     channel::{local::LocalUpdater, Channel},
     crypto::signers::EthereumSigner,
@@ -19,7 +17,7 @@ use utils::{
     defluencer::{ChannelContext, UserContext},
 };
 
-use ybc::{Box, Button, Control, Field, Media, MediaContent, MediaLeft, TextArea};
+use ybc::{Box, Button, Control, Field, TextArea};
 
 use yew::{platform::spawn_local, prelude::*};
 
@@ -27,10 +25,13 @@ use yew::{platform::spawn_local, prelude::*};
 pub struct Props {
     /// Signed link to media Cid
     pub cid: Cid,
+
+    #[prop_or_default]
+    pub children: Children,
 }
 
 pub struct CommentButton {
-    identity_cid: Option<Cid>,
+    user_context: Option<UserContext>,
 
     text: String,
     text_cb: Callback<String>,
@@ -54,8 +55,8 @@ impl Component for CommentButton {
     type Properties = Props;
 
     fn create(ctx: &Context<Self>) -> Self {
-        let identity_cid = match ctx.link().context::<UserContext>(Callback::noop()) {
-            Some((context, _)) => Some(context.user.get_identity()),
+        let user_context = match ctx.link().context::<UserContext>(Callback::noop()) {
+            Some((context, _)) => Some(context),
             None => None,
         };
 
@@ -64,7 +65,7 @@ impl Component for CommentButton {
         let create_cb = ctx.link().callback(|_| Msg::Create);
 
         Self {
-            identity_cid,
+            user_context,
 
             text: String::default(),
             text_cb,
@@ -87,67 +88,42 @@ impl Component for CommentButton {
     }
 
     fn view(&self, ctx: &Context<Self>) -> Html {
-        if self.identity_cid.is_none() {
-            return html! {
-            <Button disabled={true} >
-                <span class="icon">
-                    <i class="fa-solid fa-comment"></i>
-                </span>
-            </Button>
-            };
-        }
-
-        let cid = self.identity_cid.unwrap();
-
         html! {
         <>
-            <Button classes={classes!("is-outlined")} onclick={self.modal_cb.clone()} >
-                <span class="icon">
-                    <i class="fa-solid fa-comment"></i>
-                </span>
-            </Button>
-            { self.render_modal(cid, ctx) }
+        <Button classes={classes!("is-outlined")} onclick={self.modal_cb.clone()} disabled={self.user_context.is_none()} >
+            <span class="icon">
+                <i class="fa-solid fa-comment"></i>
+            </span>
+        </Button>
+        <div class= { if self.modal { "modal is-active" } else { "modal" } } >
+            <div class="modal-background" onclick={self.modal_cb.clone()} ></div>
+            <div class="modal-content">
+                <Box>
+                    { ctx.props().children.clone() }
+                </Box>
+                <Box>
+                    <Field>
+                        <Control>
+                            <TextArea name="text" value="" update={self.text_cb.clone()} placeholder={"Add a comment..."} rows={4} fixed_size={true} />
+                        </Control>
+                    </Field>
+                    <Field>
+                        <Control>
+                            <Button onclick={self.create_cb.clone()} loading={self.loading} >
+                                { "Post" }
+                            </Button>
+                        </Control>
+                    </Field>
+                </Box>
+            </div>
+            <button class="modal-close is-large" aria-label="close" onclick={self.modal_cb.clone()} />
+        </div>
         </>
         }
     }
 }
 
 impl CommentButton {
-    fn render_modal(&self, cid: Cid, ctx: &Context<Self>) -> Html {
-        html! {
-        <div class= { if self.modal { "modal is-active" } else { "modal" } } >
-            <div class="modal-background" onclick={self.modal_cb.clone()} ></div>
-            <div class="modal-content">
-                <Box>
-                    <Thumbnail cid={ctx.props().cid} />
-                </Box>
-                <Box>
-                    <Media>
-                        <MediaLeft>
-                            <Identification {cid} />
-                        </MediaLeft>
-                        <MediaContent>
-                            <Field>
-                                <Control>
-                                    <TextArea name="text" value="" update={self.text_cb.clone()} placeholder={"Add a comment..."} rows={4} fixed_size={true} />
-                                </Control>
-                            </Field>
-                            <Field>
-                                <Control>
-                                    <Button onclick={self.create_cb.clone()} loading={self.loading} >
-                                        { "Post" }
-                                    </Button>
-                                </Control>
-                            </Field>
-                        </MediaContent>
-                    </Media>
-                </Box>
-            </div>
-            <button class="modal-close is-large" aria-label="close" onclick={self.modal_cb.clone()} />
-        </div>
-        }
-    }
-
     fn on_click(&mut self) -> bool {
         self.modal = !self.modal;
 
@@ -165,12 +141,7 @@ impl CommentButton {
     }
 
     fn on_create(&mut self, ctx: &Context<Self>) -> bool {
-        let (context, _) = ctx
-            .link()
-            .context::<UserContext>(Callback::noop())
-            .expect("User Context");
-
-        let user = context.user;
+        let user = self.user_context.as_ref().unwrap().user.clone();
 
         let origin = ctx.props().cid;
         let text = self.text.clone();

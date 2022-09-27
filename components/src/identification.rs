@@ -14,7 +14,7 @@ use linked_data::identity::Identity;
 
 use yew_router::prelude::Link;
 
-use crate::{navbar::Route, pure::IPFSImage};
+use crate::{pure::IPFSImage, Route};
 
 #[derive(Properties, PartialEq)]
 pub struct Props {

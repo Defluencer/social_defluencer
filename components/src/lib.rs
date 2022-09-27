@@ -1,16 +1,38 @@
 #![cfg(target_arch = "wasm32")]
 
-pub mod chat;
-pub mod comment;
-pub mod comment_button;
-pub mod dag_explorer;
+use cid::Cid;
+
+use yew_router::Routable;
+
 mod ema;
+mod md_renderer;
+
+pub mod chat;
+pub mod comment_button;
 pub mod identification;
 pub mod markdown;
-mod md_renderer;
-pub mod navbar;
 pub mod pure;
-pub mod searching;
 pub mod share_button;
-pub mod thumbnail;
 pub mod video_player;
+
+#[derive(Routable, Clone, PartialEq)]
+pub enum Route {
+    #[at("/channel/:addr")]
+    Channel { addr: Cid }, // social.defluencer.eth/#/channel/<IPNS_HERE>
+
+    #[at("/content/:cid")]
+    Content { cid: Cid }, // social.defluencer.eth/#/content/<CID_HERE>
+
+    #[at("/feed")]
+    Feed, // social.defluencer.eth/#/feed/
+
+    #[at("/live/:cid")]
+    Live { cid: Cid }, // social.defluencer.eth/#/live/<CID_HERE>
+
+    #[at("/settings")]
+    Settings,
+
+    #[not_found]
+    #[at("/home")]
+    Home, // social.defluencer.eth/#/home/
+}

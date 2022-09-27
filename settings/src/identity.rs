@@ -4,7 +4,7 @@ use std::collections::{HashMap, HashSet};
 
 use cid::Cid;
 
-use components::{dag_explorer::DagExplorer, navbar::Route};
+use components::{pure::DagExplorer, Route};
 
 use defluencer::channel::Channel;
 
