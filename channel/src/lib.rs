@@ -2,15 +2,13 @@
 
 mod manage_content;
 
-use linked_data::identity::Identity;
-
 use manage_content::ManageContent;
+
+use linked_data::{identity::Identity, types::IPNSAddress};
 
 use std::collections::{HashMap, HashSet, VecDeque};
 
-use components::pure::{DagExplorer, IPFSImage, Thumbnail};
-
-use components::pure::{NavigationBar, Searching};
+use components::pure::{DagExplorer, IPFSImage, NavigationBar, Searching, Thumbnail};
 
 use futures_util::stream::AbortHandle;
 
@@ -60,7 +58,7 @@ pub struct ChannelPage {
 }
 
 pub enum Msg {
-    Update(ChannelMetadata),
+    Update((IPNSAddress, Cid, ChannelMetadata)),
     Content((Cid, Media)),
     Identity((Cid, Identity)),
     Follow,
@@ -79,9 +77,11 @@ impl Component for ChannelPage {
             .context::<IPFSContext>(Callback::noop())
             .expect("IPFS Context");
 
+        let update_cb = ctx.link().callback(Msg::Update);
+
         spawn_local(utils::r#async::get_channels(
             context.client.clone(),
-            ctx.link().callback(Msg::Update),
+            update_cb.clone(),
             HashSet::from([ctx.props().addr.into()]),
         ));
 
@@ -89,7 +89,7 @@ impl Component for ChannelPage {
 
         spawn_local(utils::r#async::channel_subscribe(
             context.client.clone(),
-            ctx.link().callback(Msg::Update),
+            update_cb,
             ctx.props().addr.into(),
             regis,
         ));
@@ -143,8 +143,8 @@ impl Component for ChannelPage {
         info!("Channel Page Update");
 
         match msg {
-            Msg::Update(metadata) => self.on_channel_update(ctx, metadata),
-            Msg::Content((cid, media)) => self.on_content(ctx, cid, media),
+            Msg::Update((_, _, metadata)) => self.on_channel_update(ctx, metadata),
+            Msg::Content((cid, media)) => self.on_content_discovered(ctx, cid, media),
             Msg::Identity((cid, identity)) => self.identities.insert(cid, identity).is_none(),
             Msg::Follow => self.on_follow(ctx),
         }
@@ -180,7 +180,7 @@ impl ChannelPage {
             <Section>
                 <Container>
                 if let Some(identity) = self.identities.get(&meta.identity.link) {
-                    //TODO display channel branding and general info
+                    //TODO display channel branding, friends & general info
                     <Level>
                         <LevelLeft>
                             if let Some(avatar) = identity.avatar {
@@ -259,20 +259,16 @@ impl ChannelPage {
             return false;
         }
 
-        let (context, _) = ctx
-            .link()
-            .context::<IPFSContext>(Callback::noop())
-            .expect("IPFS Context");
-        let ipfs = context.client;
-
         if let Some(index) = metadata.content_index {
-            if let Some(handle) = self.stream_handle.take() {
-                handle.abort();
-            }
+            let (context, _) = ctx
+                .link()
+                .context::<IPFSContext>(Callback::noop())
+                .expect("IPFS Context");
+            let ipfs = context.client;
 
             self.content.clear();
 
-            let (stream_handle, regis) = AbortHandle::new_pair();
+            let (handle, regis) = AbortHandle::new_pair();
 
             spawn_local(utils::r#async::stream_content(
                 ipfs.clone(),
@@ -281,23 +277,25 @@ impl ChannelPage {
                 regis,
             ));
 
-            self.stream_handle = Some(stream_handle);
-        }
+            if let Some(handle) = self.stream_handle.replace(handle) {
+                handle.abort();
+            }
 
-        if !self.identities.contains_key(&metadata.identity.link) {
-            spawn_local(utils::r#async::get_identity(
-                ipfs,
-                metadata.identity.link,
-                self.identity_cb.clone(),
-            ));
+            if !self.identities.contains_key(&metadata.identity.link) {
+                spawn_local(utils::r#async::get_identity(
+                    ipfs,
+                    metadata.identity.link,
+                    self.identity_cb.clone(),
+                ));
+            }
         }
 
         self.metadata = Some(metadata);
 
-        true
+        false
     }
 
-    fn on_content(&mut self, ctx: &Context<Self>, cid: Cid, media: Media) -> bool {
+    fn on_content_discovered(&mut self, ctx: &Context<Self>, cid: Cid, media: Media) -> bool {
         if !self.identities.contains_key(&media.identity().link) {
             let (context, _) = ctx
                 .link()

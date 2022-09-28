@@ -24,9 +24,7 @@ use components::pure::{Content, NavigationBar, Searching};
 
 use ipfs_api::IpfsService;
 
-use defluencer::Defluencer;
-
-use defluencer::crypto::signed_link::SignedLink;
+use defluencer::{crypto::signed_link::SignedLink, Defluencer};
 
 use linked_data::media::Media;
 

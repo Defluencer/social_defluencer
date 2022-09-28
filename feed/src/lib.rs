@@ -4,14 +4,14 @@ use std::collections::HashMap;
 
 use cid::Cid;
 
-use components::pure::{NavigationBar, Thumbnail};
+use components::pure::{NavigationBar, Searching, Thumbnail};
 
 use futures_util::stream::AbortHandle;
 
 #[cfg(debug_assertions)]
 use gloo_console::info;
 
-use linked_data::{channel::ChannelMetadata, identity::Identity, media::Media};
+use linked_data::{channel::ChannelMetadata, identity::Identity, media::Media, types::IPNSAddress};
 
 use utils::ipfs::IPFSContext;
 
@@ -23,8 +23,10 @@ use yew::{platform::spawn_local, prelude::*};
 ///
 /// The Personal Feed Page display all followed channel content
 pub struct FeedPage {
-    //channels: Vec<ChannelMetadata>,
-    handles: Vec<AbortHandle>,
+    latest_roots: HashMap<IPNSAddress, Cid>,
+
+    sub_handles: HashMap<IPNSAddress, AbortHandle>,
+    stream_handles: HashMap<IPNSAddress, AbortHandle>,
 
     content_cb: Callback<(Cid, Media)>,
     content: HashMap<Cid, Media>,
@@ -37,7 +39,7 @@ pub struct FeedPage {
 }
 
 pub enum Msg {
-    Channel(ChannelMetadata),
+    Channel((IPNSAddress, Cid, ChannelMetadata)),
     Content((Cid, Media)),
     Identity((Cid, Identity)),
 }
@@ -54,20 +56,44 @@ impl Component for FeedPage {
             .link()
             .context::<IPFSContext>(Callback::noop())
             .expect("IPFS Context");
+        let ipfs = context.client;
 
         let set = utils::follows::get_follow_list();
 
+        //TODO display a message if set of follow is empty
+
+        let channel_cb = ctx.link().callback(Msg::Channel);
+
         spawn_local(utils::r#async::get_channels(
-            context.client.clone(),
-            ctx.link().callback(Msg::Channel),
-            set,
+            ipfs.clone(),
+            channel_cb.clone(),
+            set.clone(),
         ));
+
+        let sub_handles = set
+            .into_iter()
+            .map(|addr| {
+                let (handle, regis) = AbortHandle::new_pair();
+
+                spawn_local(utils::r#async::channel_subscribe(
+                    ipfs.clone(),
+                    channel_cb.clone(),
+                    addr,
+                    regis,
+                ));
+
+                (addr, handle)
+            })
+            .collect();
 
         let content_cb = ctx.link().callback(Msg::Content);
         let identity_cb = ctx.link().callback(Msg::Identity);
 
         Self {
-            handles: Default::default(),
+            latest_roots: Default::default(),
+
+            sub_handles,
+            stream_handles: Default::default(),
 
             content_cb,
             content: Default::default(),
@@ -83,8 +109,8 @@ impl Component for FeedPage {
         info!("Feed Page Update");
 
         match msg {
-            Msg::Channel(meta) => self.on_channel(ctx, meta),
-            Msg::Content((cid, media)) => self.on_content(ctx, cid, media),
+            Msg::Channel((addr, cid, meta)) => self.on_channel_update(ctx, addr, cid, meta),
+            Msg::Content((cid, media)) => self.on_content_discovered(ctx, cid, media),
             Msg::Identity((cid, identity)) => self.identities.insert(cid, identity).is_none(),
         }
     }
@@ -92,6 +118,19 @@ impl Component for FeedPage {
     fn view(&self, _ctx: &Context<Self>) -> Html {
         #[cfg(debug_assertions)]
         info!("Feed Page View");
+
+        if self.content_order.is_empty() {
+            return html! {
+            <>
+            <NavigationBar />
+            <Section>
+                <Container>
+                    <Searching />
+                </Container>
+            </Section>
+            </>
+            };
+        }
 
         html! {
         <>
@@ -122,21 +161,32 @@ impl Component for FeedPage {
         #[cfg(debug_assertions)]
         info!("Feed Page Destroy");
 
-        for handle in &self.handles {
-            handle.abort();
+        for (sub, stream) in self.sub_handles.values().zip(self.stream_handles.values()) {
+            sub.abort();
+            stream.abort();
         }
     }
 }
 
 impl FeedPage {
-    fn on_channel(&mut self, ctx: &Context<Self>, metadata: ChannelMetadata) -> bool {
-        let (context, _) = ctx
-            .link()
-            .context::<IPFSContext>(Callback::noop())
-            .expect("IPFS Context");
-        let ipfs = context.client;
+    fn on_channel_update(
+        &mut self,
+        ctx: &Context<Self>,
+        addr: IPNSAddress,
+        cid: Cid,
+        metadata: ChannelMetadata,
+    ) -> bool {
+        if self.latest_roots.get(&addr) == Some(&cid) {
+            return false;
+        }
 
         if let Some(index) = metadata.content_index {
+            let (context, _) = ctx
+                .link()
+                .context::<IPFSContext>(Callback::noop())
+                .expect("IPFS Context");
+            let ipfs = context.client;
+
             let (handle, regis) = AbortHandle::new_pair();
 
             spawn_local(utils::r#async::stream_content(
@@ -146,21 +196,25 @@ impl FeedPage {
                 regis,
             ));
 
-            self.handles.push(handle);
+            if let Some(handle) = self.stream_handles.insert(addr, handle) {
+                handle.abort();
+            }
+
+            if !self.identities.contains_key(&metadata.identity.link) {
+                spawn_local(utils::r#async::get_identity(
+                    ipfs,
+                    metadata.identity.link,
+                    self.identity_cb.clone(),
+                ));
+            }
         }
 
-        if !self.identities.contains_key(&metadata.identity.link) {
-            spawn_local(utils::r#async::get_identity(
-                ipfs,
-                metadata.identity.link,
-                self.identity_cb.clone(),
-            ));
-        }
+        self.latest_roots.insert(addr, cid);
 
         false
     }
 
-    fn on_content(&mut self, ctx: &Context<Self>, cid: Cid, media: Media) -> bool {
+    fn on_content_discovered(&mut self, ctx: &Context<Self>, cid: Cid, media: Media) -> bool {
         if self.content.contains_key(&cid) {
             return false;
         }
@@ -195,113 +249,3 @@ impl FeedPage {
         true
     }
 }
-
-/* async fn aggregate(
-    ipfs: IpfsService,
-    addresses: impl Iterator<Item = IPNSAddress>,
-    page_index: usize,
-    pagination_length: usize,
-    content_cb: Callback<(Cid, Media)>,
-    _regis: AbortRegistration,
-) {
-    let defluencer = Defluencer::new(ipfs.clone());
-
-    let mut update_pool: FuturesUnordered<_> = addresses
-        .into_iter()
-        .map(|addr| ipfs.name_resolve(addr.into()))
-        .collect();
-
-    let mut metadata_set = HashSet::new();
-    let mut metadata_pool = FuturesUnordered::<_>::new();
-
-    let mut content_pool = SelectAll::<_>::new();
-
-    let mut content_set = HashSet::new();
-    let mut media_pool = FuturesUnordered::<_>::new();
-
-    loop {
-        //TODO find a way to terminate this gracefully OR make one stream without sets
-
-        futures_util::select! {
-            result = update_pool.try_next() => {
-                let cid = match result {
-                    Ok(option) => match option {
-                        Some(cid) => cid,
-                        None => continue,
-                    },
-                    Err(e) => {
-                        error!(&format!("{:#?}", e));
-                        continue;
-                    },
-                };
-
-                if !metadata_set.insert(cid) {
-                    continue;
-                }
-
-                metadata_pool.push(ipfs.dag_get::<&str, ChannelMetadata>(cid, None));
-            },
-            result = metadata_pool.try_next() => {
-                let metadata = match result {
-                    Ok(option) => match option {
-                        Some(dag) => dag,
-                        None => continue,
-                    },
-                    Err(e) => {
-                        error!(&format!("{:#?}", e));
-                        continue;
-                    },
-                };
-
-                if let Some(index) = metadata.content_index {
-                    content_pool.push(
-                    defluencer
-                    .stream_content_rev_chrono(index)
-                    .skip(page_index * pagination_length)
-                    .take(pagination_length)
-                    .boxed_local()
-                    );
-                }
-            },
-            result = content_pool.try_next() => {
-                let cid = match result {
-                    Ok(option) => match option {
-                        Some(cid) => cid,
-                        None => continue,
-                    },
-                    Err(e) => {
-                        error!(&format!("{:#?}", e));
-                        continue;
-                    },
-                };
-
-                if !content_set.insert(cid) {
-                    continue;
-                }
-
-                media_pool.push({
-                    let ipfs = ipfs.clone();
-
-                    async move {
-                        (cid, ipfs.dag_get::<&str, Media>(cid, Some("/link")).await)
-                    }
-                });
-            },
-            option = media_pool.next() => {
-                let (cid, media) = match option {
-                    Some((cid, result)) => match result {
-                        Ok(dag) => (cid, dag),
-                        Err(e) => {
-                            error!(&format!("{:#?}", e));
-                            continue;
-                        }
-                    },
-                    None => continue,
-                };
-
-                content_cb.emit((cid, media));
-            },
-            complete => return,
-        }
-    }
-} */

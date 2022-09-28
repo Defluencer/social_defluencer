@@ -6,8 +6,7 @@ use yew::{classes, function_component, html, Html, Properties};
 
 use cid::Cid;
 
-use components::chat::ChatWindow;
-use components::video_player::VideoPlayer;
+use components::{chat::ChatWindow, pure::NavigationBar, video_player::VideoPlayer};
 
 #[derive(Properties, PartialEq)]
 pub struct LivePageProps {
@@ -18,6 +17,8 @@ pub struct LivePageProps {
 #[function_component(LivePage)]
 pub fn live_page(props: &LivePageProps) -> Html {
     html! {
+    <>
+    <NavigationBar />
     <Section>
         <Columns>
             <Column>
@@ -30,5 +31,6 @@ pub fn live_page(props: &LivePageProps) -> Html {
             </Column>
         </Columns>
     </Section>
+    </>
     }
 }

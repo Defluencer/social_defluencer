@@ -134,22 +134,6 @@ impl Component for VideoPlayer {
 
         let ipfs = context.client;
 
-        /* spawn_local({
-            let ipfs = ipfs.clone();
-            let cb = ctx.link().callback(Msg::Settings);
-            let cid = ctx.props().cid;
-
-            async move {
-                match ipfs.dag_get::<&str, LiveOrVideo>(cid, Some("/link")).await {
-                    Ok(either) => cb.emit(either.inner),
-                    Err(e) => {
-                        error!(&format!("{:#?}", e));
-                        return;
-                    }
-                }
-            }
-        }); */
-
         let ema = ExponentialMovingAverage::new();
 
         let media_source = match MediaSource::new() {
@@ -218,7 +202,7 @@ impl Component for VideoPlayer {
     fn view(&self, _ctx: &Context<Self>) -> Html {
         html! {
             <ybc::Image size={ybc::ImageSize::Is16by9} >
-                <video class={classes!("has-ratio")} src={self.object_url.clone()} width=640 height=360 id="video_player" autoplay=true controls=true />
+                <video class={classes!("has-ratio")} src={self.object_url.clone()} width=640 height=360 id="video_player" autoplay=false controls=true />
             </ybc::Image>
         }
     }

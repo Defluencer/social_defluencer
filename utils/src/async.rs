@@ -26,21 +26,41 @@ use futures_util::stream::{
 /// Resolve multiple IPNS addresses then get the channel metadata.
 pub async fn get_channels(
     ipfs: IpfsService,
-    callback: Callback<ChannelMetadata>,
+    callback: Callback<(IPNSAddress, Cid, ChannelMetadata)>,
     addresses: HashSet<IPNSAddress>,
 ) {
+    let count = addresses.len();
+
     let update_pool: FuturesUnordered<_> = addresses
         .into_iter()
-        .map(|addr| ipfs.name_resolve(addr.into()))
+        .map(|addr| {
+            let ipfs = ipfs.clone();
+
+            async move {
+                match ipfs.name_resolve(addr.into()).await {
+                    Ok(cid) => Ok((addr, cid)),
+                    Err(e) => Err(e),
+                }
+            }
+        })
         .collect();
 
     let mut stream = update_pool
-        .map_ok(|cid| ipfs.dag_get::<&str, ChannelMetadata>(cid, None))
-        .try_buffer_unordered(10);
+        .map_ok(|(addr, cid)| {
+            let ipfs = ipfs.clone();
+
+            async move {
+                match ipfs.dag_get::<&str, ChannelMetadata>(cid, None).await {
+                    Ok(dag) => Ok((addr, cid, dag)),
+                    Err(e) => Err(e),
+                }
+            }
+        })
+        .try_buffer_unordered(count);
 
     while let Some(result) = stream.next().await {
         match result {
-            Ok(dag) => callback.emit(dag),
+            Ok(tuple) => callback.emit(tuple),
             Err(e) => error!(&format!("{:#?}", e)),
         }
     }
@@ -49,7 +69,7 @@ pub async fn get_channels(
 /// Subscribe and get latest channel metadata
 pub async fn channel_subscribe(
     ipfs: IpfsService,
-    callback: Callback<ChannelMetadata>,
+    callback: Callback<(IPNSAddress, Cid, ChannelMetadata)>,
     addr: IPNSAddress,
     regis: AbortRegistration,
 ) {
@@ -63,7 +83,7 @@ pub async fn channel_subscribe(
             async move {
                 match result {
                     Ok(cid) => match ipfs.dag_get::<&str, ChannelMetadata>(cid, None).await {
-                        Ok(dag) => Ok(dag),
+                        Ok(dag) => Ok((addr, cid, dag)),
                         Err(e) => Err(e.into()),
                     },
                     Err(e) => Err(e),
@@ -72,11 +92,13 @@ pub async fn channel_subscribe(
         })
         .buffer_unordered(2);
 
-    let mut stream = Abortable::new(stream, regis).boxed_local();
+    let stream = Abortable::new(stream, regis);
+
+    futures_util::pin_mut!(stream);
 
     while let Some(result) = stream.next().await {
         match result {
-            Ok(dag) => callback.emit(dag),
+            Ok(tuple) => callback.emit(tuple),
             Err(e) => error!(&format!("{:#?}", e)),
         }
     }
