@@ -10,7 +10,7 @@ use utils::ipfs::IPFSContext;
 
 use yew::{platform::spawn_local, prelude::*};
 
-use super::display::ChatDisplay;
+use super::{display::ChatDisplay, inputs::ChatInputs};
 
 #[derive(Properties, PartialEq)]
 pub struct Props {
@@ -68,7 +68,7 @@ impl Component for ChatWindow {
             html! {
             <ContextProvider<LiveContext> context={context.clone()} >
                 <ChatDisplay />
-                //<ChatInputs />
+                <ChatInputs />
             </ContextProvider<LiveContext>>
             }
         } else {

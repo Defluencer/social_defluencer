@@ -22,6 +22,7 @@ pub struct Web3Context {
     pub client: Web3<Eip1193>,
     pub ens: Ens<Eip1193>,
     pub addr: Address,
+    pub name: Option<String>,
     pub signer: EthereumSigner,
 }
 
@@ -57,12 +58,15 @@ impl Web3Context {
             }
         };
 
+        let name = ens.canonical_name(addr.into()).await.ok();
+
         let signer = EthereumSigner::new(addr, client.clone());
 
         Some(Self {
             client,
             ens,
             addr,
+            name,
             signer,
         })
     }
