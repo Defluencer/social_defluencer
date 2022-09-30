@@ -52,6 +52,7 @@ pub struct Props {
 #[derive(PartialEq)]
 pub enum Modals {
     Create,
+    Import,
     Delete,
     None,
 }
@@ -60,6 +61,7 @@ pub enum Modals {
 pub struct IdentitySettings {
     modal: Modals,
     create_modal_cb: Callback<MouseEvent>,
+    import_modal_cb: Callback<MouseEvent>,
 
     delete_cid: Option<Cid>,
     confirm_delete_cb: Callback<MouseEvent>,
@@ -78,7 +80,8 @@ pub struct IdentitySettings {
     files: Vec<SysFile>,
     file_cb: Callback<Vec<SysFile>>,
 
-    identity_cb: Callback<MouseEvent>,
+    create_cb: Callback<MouseEvent>,
+    import_cb: Callback<MouseEvent>,
     loading: bool,
 }
 
@@ -90,6 +93,7 @@ pub enum Msg {
     Channel(bool),
     Files(Vec<SysFile>),
     Create,
+    Import,
 
     IdentityCreated((Cid, Identity)),
     GetIDs((Cid, Identity)),
@@ -132,6 +136,7 @@ impl Component for IdentitySettings {
         }
 
         let create_modal_cb = ctx.link().callback(|_| Msg::Modal(Modals::Create));
+        let import_modal_cb = ctx.link().callback(|_| Msg::Modal(Modals::Import));
 
         let confirm_delete_cb = ctx.link().callback(|_| Msg::ConfirmDelete);
 
@@ -141,10 +146,12 @@ impl Component for IdentitySettings {
         let channel_cb = ctx.link().callback(Msg::Channel);
         let file_cb = ctx.link().callback(Msg::Files);
         let identity_cb = ctx.link().callback(|_| Msg::Create);
+        let import_cb = ctx.link().callback(|_| Msg::Import);
 
         Self {
             modal: Modals::None,
             create_modal_cb,
+            import_modal_cb,
 
             delete_cid: None,
             confirm_delete_cb,
@@ -163,7 +170,8 @@ impl Component for IdentitySettings {
             files: vec![],
             file_cb,
 
-            identity_cb,
+            create_cb: identity_cb,
+            import_cb,
             loading: false,
         }
     }
@@ -179,6 +187,7 @@ impl Component for IdentitySettings {
             Msg::Channel(channel) => self.on_channel(channel),
             Msg::Files(files) => self.on_files(files),
             Msg::Create => self.on_create(ctx),
+            Msg::Import => self.on_import(ctx),
             Msg::IdentityCreated((cid, identity)) => self.on_identity_created(ctx, cid, identity),
             Msg::GetIDs((cid, identity)) => self.on_ids(cid, identity),
             Msg::DeleteID(cid) => self.on_delete(cid),
@@ -197,11 +206,23 @@ impl Component for IdentitySettings {
                     { "Identities" }
                 </Subtitle>
                 { self.render_create_modal() }
+                { self.render_import_modal() }
                 { self.render_delete_modal() }
                 { self.render_identities(ctx) }
-                <Button onclick={ self.create_modal_cb.clone() } >
-                    { "Create New Identity" }
-                </Button>
+                <Level>
+                    <LevelLeft>
+                        <LevelItem>
+                            <Button onclick={ self.create_modal_cb.clone() } >
+                                { "Create Identity" }
+                            </Button>
+                        </LevelItem>
+                        <LevelItem>
+                            <Button onclick={ self.import_modal_cb.clone() } >
+                                { "Import Identity" }
+                            </Button>
+                        </LevelItem>
+                    </LevelLeft>
+                </Level>
             </Container>
         </Section>
         }
@@ -239,8 +260,40 @@ impl IdentitySettings {
                     </Field>
                 </section>
                 <footer class="modal-card-foot">
-                    <Button onclick={self.identity_cb.clone()} loading={self.loading} disabled={self.files.is_empty()} >
+                    <Button onclick={self.create_cb.clone()} loading={self.loading} disabled={self.files.is_empty()} >
                         { "Create" }
+                    </Button>
+                    <Button onclick={self.close_modal_cb.clone()}>
+                        { "Cancel" }
+                    </Button>
+                </footer>
+            </div>
+        </div>
+        }
+    }
+
+    fn render_import_modal(&self) -> Html {
+        html! {
+        <div class= { if self.modal == Modals::Import { "modal is-active" } else { "modal" } } >
+            <div class="modal-background"></div>
+            <div class="modal-card">
+                <header class="modal-card-head">
+                    <p class="modal-card-title">
+                        { "Identity" }
+                    </p>
+                    <button class="delete" aria-label="close" onclick={self.close_modal_cb.clone()} >
+                    </button>
+                </header>
+                <section class="modal-card-body">
+                    <Field label="Identity CID" >
+                        <Control>
+                            <Input name="cid" value="" update={self.name_cb.clone()} />
+                        </Control>
+                    </Field>
+                </section>
+                <footer class="modal-card-foot">
+                    <Button onclick={self.import_cb.clone()} loading={self.loading} disabled={self.name.is_empty()} >
+                        { "Import" }
                     </Button>
                     <Button onclick={self.close_modal_cb.clone()}>
                         { "Cancel" }
@@ -479,6 +532,38 @@ impl IdentitySettings {
             self.channel,
             self.name.clone(),
             addr,
+            ctx.link().callback(Msg::IdentityCreated),
+        ));
+
+        self.loading = true;
+
+        true
+    }
+
+    fn on_import(&mut self, ctx: &Context<Self>) -> bool {
+        let (context, _) = ctx
+            .link()
+            .context::<IPFSContext>(Callback::noop())
+            .expect("IPFS Context");
+        let ipfs = context.client;
+
+        let cid = match Cid::try_from(self.name.as_str()) {
+            Ok(cid) => cid,
+            Err(e) => {
+                error!(&format!("{:?}", e));
+                return false;
+            }
+        };
+
+        if self.identity_map.contains_key(&cid) {
+            info!("Duplicate Identity");
+            self.modal = Modals::None;
+            return true;
+        }
+
+        spawn_local(utils::r#async::get_identity(
+            ipfs,
+            cid,
             ctx.link().callback(Msg::IdentityCreated),
         ));
 
