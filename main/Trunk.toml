@@ -17,8 +17,10 @@ watch = [
     "../feed",
     "../home",
     "../live",
+    "../main",
     "../settings",
     "../utils",
+    
 ]
 # Paths to ignore.
 ignore = []

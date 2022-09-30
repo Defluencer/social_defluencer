@@ -4,7 +4,11 @@ use ybc::{Block, Container, Section, Subtitle, Tabs};
 
 use yew::{context::ContextHandle, prelude::*};
 
-use utils::ipfs::{get_ipfs_addr, set_ipfs_addr, IPFSContext};
+use utils::{
+    defluencer::{ChannelContext, UserContext},
+    ipfs::{get_ipfs_addr, set_ipfs_addr, IPFSContext},
+    web3::Web3Context,
+};
 
 use web_sys::{EventTarget, HtmlInputElement};
 
@@ -17,7 +21,12 @@ use cid::Cid;
 
 #[derive(Properties, PartialEq)]
 pub struct Props {
-    pub ipfs_cb: Callback<IPFSContext>,
+    pub context_cb: Callback<(
+        Option<IPFSContext>,
+        Option<Web3Context>,
+        Option<UserContext>,
+        Option<ChannelContext>,
+    )>,
 }
 
 pub struct IPFSSettings {
@@ -112,7 +121,7 @@ impl Component for IPFSSettings {
             Msg::Addrs(msg) => {
                 if msg != self.address {
                     spawn_local({
-                        let cb = ctx.props().ipfs_cb.clone();
+                        let cb = ctx.props().context_cb.clone();
                         let url = msg.clone();
                         let addr = msg.clone();
 
@@ -120,7 +129,7 @@ impl Component for IPFSSettings {
                             if let Some(context) = IPFSContext::new(Some(url)).await {
                                 set_ipfs_addr(addr);
 
-                                cb.emit(context);
+                                cb.emit((Some(context), None, None, None));
                             }
                         }
                     });

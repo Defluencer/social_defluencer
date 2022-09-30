@@ -22,20 +22,26 @@ use utils::{
 
 use wasm_bindgen_futures::spawn_local;
 
-use gloo_console::{error, info};
+use gloo_console::info;
 
 pub enum Msg {
-    IPFS(IPFSContext),
-    Web3(Web3Context),
-    User(UserContext),
-    Channel(ChannelContext),
+    Context(
+        (
+            Option<IPFSContext>,
+            Option<Web3Context>,
+            Option<UserContext>,
+            Option<ChannelContext>,
+        ),
+    ),
 }
 
 pub struct App {
-    ipfs_cb: Callback<IPFSContext>,
-    web3_cb: Callback<Web3Context>,
-    user_cb: Callback<UserContext>,
-    channel_cb: Callback<ChannelContext>,
+    context_cb: Callback<(
+        Option<IPFSContext>,
+        Option<Web3Context>,
+        Option<UserContext>,
+        Option<ChannelContext>,
+    )>,
 
     ipfs_context: Option<IPFSContext>,
     web3_context: Option<Web3Context>,
@@ -51,44 +57,12 @@ impl Component for App {
         #[cfg(debug_assertions)]
         info!("App Create");
 
-        let ipfs_cb = ctx.link().callback(Msg::IPFS);
+        let context_cb = ctx.link().callback(Msg::Context);
 
-        // Get IPFS at startup from saved value
-        if let Ok(url) = get_ipfs_addr() {
-            spawn_local({
-                let cb = ipfs_cb.clone();
-
-                async move {
-                    if let Some(context) = IPFSContext::new(Some(url)).await {
-                        cb.emit(context);
-                    }
-                }
-            });
-        }
-
-        let web3_cb = ctx.link().callback(Msg::Web3);
-
-        // Get Web3 at startup from saved value
-        if get_wallet_addr().is_some() {
-            spawn_local({
-                let cb = web3_cb.clone();
-
-                async move {
-                    if let Some(context) = Web3Context::new().await {
-                        cb.emit(context);
-                    }
-                }
-            });
-        }
-
-        let user_cb = ctx.link().callback(Msg::User);
-        let channel_cb = ctx.link().callback(Msg::Channel);
+        spawn_local(get_context(context_cb.clone()));
 
         Self {
-            ipfs_cb,
-            web3_cb,
-            user_cb,
-            channel_cb,
+            context_cb,
 
             ipfs_context: None,
             web3_context: None,
@@ -97,72 +71,44 @@ impl Component for App {
         }
     }
 
-    fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
+    fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool {
         #[cfg(debug_assertions)]
         info!("App Update");
 
+        let mut update = false;
+
         match msg {
-            Msg::IPFS(context) => self.ipfs_context = Some(context),
-            Msg::Web3(context) => self.web3_context = Some(context),
-            Msg::User(context) => self.user_context = Some(context),
-            Msg::Channel(context) => self.channel_context = Some(context),
-        }
-
-        // Get user at startup from saved value
-        match (
-            self.ipfs_context.as_ref(),
-            self.web3_context.as_ref(),
-            get_current_identity(),
-            self.user_context.as_ref(),
-        ) {
-            (Some(ipfs), Some(web3), Some(ipld), None) => {
-                let context = UserContext::new(ipfs.client.clone(), web3.signer.clone(), ipld.link);
-
-                self.user_context = Some(context);
-            }
-            _ => {}
-        }
-
-        // Get Channel at startup from saved value
-        match (
-            self.ipfs_context.as_ref(),
-            get_current_identity(),
-            self.channel_context.as_ref(),
-        ) {
-            (Some(ipfs), Some(ipld), None) => spawn_local({
-                let ipfs = ipfs.client.clone();
-                let cb = ctx.link().callback(Msg::Channel);
-
-                async move {
-                    match ipfs.dag_get::<&str, Identity>(ipld.link, None).await {
-                        Ok(identity) => {
-                            if let Some(addr) = identity.channel_ipns {
-                                use heck::ToSnakeCase;
-                                let key = identity.display_name.to_snake_case();
-
-                                let context = ChannelContext::new(ipfs.clone(), key, addr);
-
-                                cb.emit(context)
-                            }
-                        }
-                        Err(e) => error!(&format!("{:?}", e)),
-                    }
+            Msg::Context((ipfs, web3, user, channel)) => {
+                if self.ipfs_context.is_none() && ipfs.is_some() {
+                    self.ipfs_context = ipfs;
+                    update = true;
                 }
-            }),
-            _ => {}
+
+                if self.web3_context.is_none() && web3.is_some() {
+                    self.web3_context = web3;
+                    update = true;
+                }
+
+                if self.user_context.is_none() && user.is_some() {
+                    self.user_context = user;
+                    update = true;
+                }
+
+                if self.channel_context.is_none() && channel.is_some() {
+                    self.channel_context = channel;
+                    update = true;
+                }
+            }
         }
 
-        true
+        update
     }
 
     fn view(&self, _ctx: &Context<Self>) -> Html {
         #[cfg(debug_assertions)]
         info!("App View");
 
-        let ipfs_cb = self.ipfs_cb.clone();
-        let web3_cb = self.web3_cb.clone();
-        let user_cb = self.user_cb.clone();
-        let channel_cb = self.channel_cb.clone();
+        let context_cb = self.context_cb.clone();
 
         // If IPFS is not working displaying pages is pointless
         let app = match self.ipfs_context.as_ref() {
@@ -176,7 +122,7 @@ impl Component for App {
                                 Route::Feed => html!{ <FeedPage /> },
                                 Route::Home => html!{ <HomePage /> },
                                 Route::Live { cid } => html!{ <LivePage {cid} />},
-                                Route::Settings => html!{ <SettingPage ipfs_cb={ipfs_cb.clone()} web3_cb={web3_cb.clone()} user_cb={user_cb.clone()} channel_cb={channel_cb.clone()} /> },
+                                Route::Settings => html!{ <SettingPage context_cb={context_cb.clone()} /> },
                             }}}
                         />
                     </HashRouter>
@@ -187,7 +133,7 @@ impl Component for App {
                     <Switch<Route> render={move |route| {
                         match route {
                             Route::Home => html!{ <HomePage /> },
-                            _ => html!{ <SettingPage ipfs_cb={ipfs_cb.clone()} web3_cb={web3_cb.clone()} user_cb={user_cb.clone()} channel_cb={channel_cb.clone()} /> },
+                            _ => html!{ <SettingPage context_cb={context_cb.clone()} /> },
                         }}}
                     />
                 </HashRouter>
@@ -223,4 +169,57 @@ impl Component for App {
 
         app
     }
+}
+
+async fn get_context(
+    callback: Callback<(
+        Option<IPFSContext>,
+        Option<Web3Context>,
+        Option<UserContext>,
+        Option<ChannelContext>,
+    )>,
+) {
+    let mut ipfs = None;
+
+    if let Ok(url) = get_ipfs_addr() {
+        ipfs = IPFSContext::new(Some(url)).await;
+    }
+
+    let mut web3 = None;
+
+    if get_wallet_addr().is_some() {
+        web3 = Web3Context::new().await;
+    }
+
+    let user = match (&ipfs, &web3, get_current_identity()) {
+        (Some(ipfs), Some(web3), Some(ipld)) => {
+            let context = UserContext::new(ipfs.client.clone(), web3.signer.clone(), ipld.link);
+
+            Some(context)
+        }
+        _ => None,
+    };
+
+    let channel = match (&ipfs, get_current_identity()) {
+        (Some(ipfs), Some(ipld)) => {
+            match ipfs.client.dag_get::<&str, Identity>(ipld.link, None).await {
+                Ok(identity) => {
+                    if let Some(addr) = identity.channel_ipns {
+                        use heck::ToSnakeCase;
+                        let key = identity.display_name.to_snake_case();
+
+                        let context = ChannelContext::new(ipfs.client.clone(), key, addr);
+
+                        Some(context)
+                    } else {
+                        None
+                    }
+                }
+                Err(_) => None,
+            }
+        }
+        _ => None,
+    };
+
+    callback.emit((ipfs, web3, user, channel));
 }

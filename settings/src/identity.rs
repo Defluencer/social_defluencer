@@ -41,8 +41,12 @@ use ipfs_api::{responses::Codec, IpfsService};
 
 #[derive(Properties, PartialEq)]
 pub struct Props {
-    pub user_cb: Callback<UserContext>,
-    pub channel_cb: Callback<ChannelContext>,
+    pub context_cb: Callback<(
+        Option<IPFSContext>,
+        Option<Web3Context>,
+        Option<UserContext>,
+        Option<ChannelContext>,
+    )>,
 }
 
 #[derive(PartialEq)]
@@ -350,18 +354,20 @@ impl IdentitySettings {
                 .expect("Web3 Context");
             let signer = web3_context.signer;
 
-            ctx.props()
-                .user_cb
-                .emit(UserContext::new(ipfs.clone(), signer, cid));
+            let user = Some(UserContext::new(ipfs.clone(), signer, cid));
 
-            if let Some(addr) = identity.channel_ipns {
+            let channel = if let Some(addr) = identity.channel_ipns {
                 use heck::ToSnakeCase;
                 let key = identity.display_name.to_snake_case();
 
                 let context = ChannelContext::new(ipfs, key, addr);
 
-                ctx.props().channel_cb.emit(context);
-            }
+                Some(context)
+            } else {
+                None
+            };
+
+            ctx.props().context_cb.emit((None, None, user, channel));
         }
 
         true
@@ -395,18 +401,20 @@ impl IdentitySettings {
                 .expect("Web3 Context");
             let signer = web3_context.signer;
 
-            ctx.props()
-                .user_cb
-                .emit(UserContext::new(ipfs.clone(), signer, cid));
+            let user = Some(UserContext::new(ipfs.clone(), signer, cid));
 
-            if let Some(addr) = identity.channel_ipns {
+            let channel = if let Some(addr) = identity.channel_ipns {
                 use heck::ToSnakeCase;
                 let key = identity.display_name.to_snake_case();
 
                 let context = ChannelContext::new(ipfs, key, addr);
 
-                ctx.props().channel_cb.emit(context);
-            }
+                Some(context)
+            } else {
+                None
+            };
+
+            ctx.props().context_cb.emit((None, None, user, channel));
         }
 
         true

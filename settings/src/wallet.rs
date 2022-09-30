@@ -7,7 +7,9 @@ use ybc::{Button, Container, Section, Subtitle};
 use yew::{context::ContextHandle, prelude::*};
 
 use utils::{
+    defluencer::{ChannelContext, UserContext},
     display_address,
+    ipfs::IPFSContext,
     web3::{set_wallet_addr, Web3Context},
 };
 
@@ -17,7 +19,12 @@ use gloo_console::info;
 
 #[derive(Properties, PartialEq)]
 pub struct Props {
-    pub web3_cb: Callback<Web3Context>,
+    pub context_cb: Callback<(
+        Option<IPFSContext>,
+        Option<Web3Context>,
+        Option<UserContext>,
+        Option<ChannelContext>,
+    )>,
 }
 
 pub struct WalletSettings {
@@ -62,13 +69,13 @@ impl Component for WalletSettings {
         match msg {
             Msg::ConnectWallet => {
                 spawn_local({
-                    let cb = ctx.props().web3_cb.clone();
+                    let cb = ctx.props().context_cb.clone();
 
                     async move {
                         if let Some(context) = Web3Context::new().await {
                             set_wallet_addr(display_address(context.addr));
 
-                            cb.emit(context);
+                            cb.emit((None, Some(context), None, None));
                         }
                     }
                 });

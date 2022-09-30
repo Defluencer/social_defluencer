@@ -22,26 +22,24 @@ use components::pure::NavigationBar;
 
 #[derive(Properties, PartialEq)]
 pub struct SettingPageProps {
-    pub ipfs_cb: Callback<IPFSContext>,
-    pub web3_cb: Callback<Web3Context>,
-    pub user_cb: Callback<UserContext>,
-    pub channel_cb: Callback<ChannelContext>,
+    pub context_cb: Callback<(
+        Option<IPFSContext>,
+        Option<Web3Context>,
+        Option<UserContext>,
+        Option<ChannelContext>,
+    )>,
 }
 
 #[function_component(SettingPage)]
 pub fn settings(props: &SettingPageProps) -> Html {
-    let ipfs_cb = props.ipfs_cb.clone();
-    let web3_cb = props.web3_cb.clone();
+    let context_cb = props.context_cb.clone();
 
     let ipfs_context = use_context::<IPFSContext>();
     let web3_context = use_context::<Web3Context>();
 
     let identity_settings = match (ipfs_context, web3_context) {
         (Some(_), Some(_)) => {
-            let user_cb = props.user_cb.clone();
-            let channel_cb = props.channel_cb.clone();
-
-            html! {<IdentitySettings {user_cb} {channel_cb} />}
+            html! {<IdentitySettings context_cb={context_cb.clone()} />}
         }
         _ => html! {},
     };
@@ -49,8 +47,8 @@ pub fn settings(props: &SettingPageProps) -> Html {
     html! {
         <>
         <NavigationBar />
-        <IPFSSettings {ipfs_cb} />
-        <WalletSettings {web3_cb} />
+        <IPFSSettings context_cb={context_cb.clone()} />
+        <WalletSettings {context_cb} />
         {identity_settings}
         </>
     }
