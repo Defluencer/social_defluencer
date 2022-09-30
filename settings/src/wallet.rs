@@ -4,7 +4,7 @@ use linked_data::types::Address;
 
 use ybc::{Button, Container, Section, Subtitle};
 
-use yew::{context::ContextHandle, prelude::*};
+use yew::{context::ContextHandle, platform::spawn_local, prelude::*};
 
 use utils::{
     defluencer::{ChannelContext, UserContext},
@@ -12,8 +12,6 @@ use utils::{
     ipfs::IPFSContext,
     web3::{set_wallet_addr, Web3Context},
 };
-
-use wasm_bindgen_futures::spawn_local;
 
 use gloo_console::info;
 
@@ -73,7 +71,7 @@ impl Component for WalletSettings {
 
                     async move {
                         if let Some(context) = Web3Context::new().await {
-                            set_wallet_addr(display_address(context.addr));
+                            set_wallet_addr(&display_address(context.addr));
 
                             cb.emit((None, Some(context), None, None));
                         }

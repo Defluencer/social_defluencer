@@ -2097,7 +2097,6 @@ dependencies = [
  "linked-data",
  "utils",
  "wasm-bindgen",
- "wasm-bindgen-futures",
  "web-sys",
  "ybc",
  "yew",

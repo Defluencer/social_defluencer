@@ -26,11 +26,9 @@ use ybc::{
     LevelLeft, LevelRight, Section, Subtitle,
 };
 
-use yew::prelude::*;
+use yew::{platform::spawn_local, prelude::*};
 
 use gloo_console::{error, info};
-
-use wasm_bindgen_futures::spawn_local;
 
 use linked_data::{
     identity::Identity,
@@ -390,38 +388,43 @@ impl IdentitySettings {
     }
 
     fn on_set_identity(&mut self, cid: Cid, ctx: &Context<Self>) -> bool {
+        let identity = match self.identity_map.get(&cid) {
+            Some(id) => id,
+            None => {
+                return false;
+            }
+        };
+
         let link: IPLDLink = cid.into();
         set_current_identity(link);
         self.current_id = Some(link);
 
-        if let Some(identity) = self.identity_map.get(&cid) {
-            let (context, _) = ctx
-                .link()
-                .context::<IPFSContext>(Callback::noop())
-                .expect("IPFS Context");
-            let ipfs = context.client;
+        let (context, _) = ctx
+            .link()
+            .context::<IPFSContext>(Callback::noop())
+            .expect("IPFS Context");
+        let ipfs = context.client;
 
-            let (web3_context, _) = ctx
-                .link()
-                .context::<Web3Context>(Callback::noop())
-                .expect("Web3 Context");
-            let signer = web3_context.signer;
+        let (web3_context, _) = ctx
+            .link()
+            .context::<Web3Context>(Callback::noop())
+            .expect("Web3 Context");
+        let signer = web3_context.signer;
 
-            let user = Some(UserContext::new(ipfs.clone(), signer, cid));
+        let user = Some(UserContext::new(ipfs.clone(), signer, cid));
 
-            let channel = if let Some(addr) = identity.channel_ipns {
-                use heck::ToSnakeCase;
-                let key = identity.display_name.to_snake_case();
+        let channel = if let Some(addr) = identity.channel_ipns {
+            use heck::ToSnakeCase;
+            let key = identity.display_name.to_snake_case();
 
-                let context = ChannelContext::new(ipfs, key, addr);
+            let context = ChannelContext::new(ipfs, key, addr);
 
-                Some(context)
-            } else {
-                None
-            };
+            Some(context)
+        } else {
+            None
+        };
 
-            ctx.props().context_cb.emit((None, None, user, channel));
-        }
+        ctx.props().context_cb.emit((None, None, user, channel));
 
         true
     }

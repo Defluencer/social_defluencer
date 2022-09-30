@@ -1,6 +1,5 @@
 #![cfg(target_arch = "wasm32")]
 
-use defluencer::Defluencer;
 use ipfs_api::{IpfsService, DEFAULT_URI};
 
 use linked_data::types::PeerId;
@@ -15,7 +14,6 @@ use serde::Serialize;
 pub struct IPFSContext {
     pub client: IpfsService,
     pub peer_id: PeerId,
-    pub defluencer: Defluencer,
 }
 
 impl PartialEq for IPFSContext {
@@ -25,8 +23,8 @@ impl PartialEq for IPFSContext {
 }
 
 impl IPFSContext {
-    pub async fn new(url: Option<String>) -> Option<Self> {
-        let url = match &url {
+    pub async fn new(url: Option<&str>) -> Option<Self> {
+        let url = match url {
             Some(url) => url,
             None => DEFAULT_URI,
         };
@@ -35,7 +33,6 @@ impl IPFSContext {
             Ok(client) => client,
             Err(e) => {
                 error!(&format!("{:#?}", e));
-
                 return None;
             }
         };
@@ -44,37 +41,33 @@ impl IPFSContext {
             Ok(peer_id) => peer_id.into(),
             Err(e) => {
                 error!(&format!("{:#?}", e));
-
                 return None;
             }
         };
 
-        let defluencer = Defluencer::new(client.clone());
-
-        Some(Self {
-            client,
-            peer_id,
-            defluencer,
-        })
+        Some(Self { client, peer_id })
     }
 }
 
 const IPFS_API_ADDRS_KEY: &str = "ipfs_api_addrs";
 
 /// Return IPFS api url from storage or default.
-pub fn get_ipfs_addr() -> Result<String, String> {
+pub fn get_ipfs_addr() -> String {
     match LocalStorage::get(IPFS_API_ADDRS_KEY) {
-        Ok(url) => Ok(url),
-        Err(_) => Err(DEFAULT_URI.to_owned()),
+        Ok(url) => url,
+        Err(e) => {
+            error!(&format!("{:?}", e));
+            DEFAULT_URI.to_owned()
+        }
     }
 }
 
 /// Save IPFS api url to local storage.
-pub fn set_ipfs_addr<T>(msg: T)
+pub fn set_ipfs_addr<T>(msg: &T)
 where
     T: Serialize,
 {
-    if let Err(e) = LocalStorage::set(IPFS_API_ADDRS_KEY, &msg) {
+    if let Err(e) = LocalStorage::set(IPFS_API_ADDRS_KEY, msg) {
         error!(&format!("{:?}", e));
     }
 }

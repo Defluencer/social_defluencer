@@ -80,11 +80,11 @@ pub fn get_wallet_addr() -> Option<String> {
 }
 
 /// Save wallet address to local storage.
-pub fn set_wallet_addr<T>(msg: T)
+pub fn set_wallet_addr<T>(msg: &T)
 where
     T: Serialize,
 {
-    if let Err(e) = LocalStorage::set(WALLET_ADDRS_KEY, &msg) {
+    if let Err(e) = LocalStorage::set(WALLET_ADDRS_KEY, msg) {
         error!(&format!("{:?}", e));
     }
 }

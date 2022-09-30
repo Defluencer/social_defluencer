@@ -16,7 +16,7 @@ use components::Route;
 use utils::{
     defluencer::{ChannelContext, UserContext},
     identity::get_current_identity,
-    ipfs::{get_ipfs_addr, IPFSContext},
+    ipfs::{get_ipfs_addr, set_ipfs_addr, IPFSContext},
     web3::{get_wallet_addr, Web3Context},
 };
 
@@ -179,10 +179,12 @@ async fn get_context(
         Option<ChannelContext>,
     )>,
 ) {
-    let mut ipfs = None;
+    let addr = get_ipfs_addr();
 
-    if let Ok(url) = get_ipfs_addr() {
-        ipfs = IPFSContext::new(Some(url)).await;
+    let ipfs = IPFSContext::new(Some(&addr)).await;
+
+    if ipfs.is_some() {
+        set_ipfs_addr(&addr);
     }
 
     let mut web3 = None;

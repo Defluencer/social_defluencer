@@ -2,7 +2,7 @@
 
 use ybc::{Block, Container, Section, Subtitle, Tabs};
 
-use yew::{context::ContextHandle, prelude::*};
+use yew::{context::ContextHandle, platform::spawn_local, prelude::*};
 
 use utils::{
     defluencer::{ChannelContext, UserContext},
@@ -13,7 +13,6 @@ use utils::{
 use web_sys::{EventTarget, HtmlInputElement};
 
 use wasm_bindgen::JsCast;
-use wasm_bindgen_futures::spawn_local;
 
 use gloo_console::{error, info};
 
@@ -62,7 +61,7 @@ impl Component for IPFSSettings {
             None => (None, None),
         };
 
-        let address = get_ipfs_addr().unwrap_or_else(|default| default);
+        let address = get_ipfs_addr();
 
         let address_cb = ctx.link().callback(|e: Event| {
             let target: EventTarget = e
@@ -126,8 +125,8 @@ impl Component for IPFSSettings {
                         let addr = msg.clone();
 
                         async move {
-                            if let Some(context) = IPFSContext::new(Some(url)).await {
-                                set_ipfs_addr(addr);
+                            if let Some(context) = IPFSContext::new(Some(&url)).await {
+                                set_ipfs_addr(&addr);
 
                                 cb.emit((Some(context), None, None, None));
                             }
