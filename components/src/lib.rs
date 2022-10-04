@@ -9,7 +9,6 @@ mod md_renderer;
 
 pub mod chat;
 pub mod comment_button;
-pub mod identification;
 pub mod markdown;
 pub mod pure;
 pub mod share_button;

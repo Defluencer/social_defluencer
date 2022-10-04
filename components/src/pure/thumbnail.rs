@@ -41,41 +41,6 @@ pub fn pure_thumbnail(props: &ThumbnailProps) -> Html {
     let dt = timestamp_to_datetime(media.user_timestamp());
 
     let content = match media {
-        Media::MicroBlog(blog) => {
-            let count = words_count::count(&blog.content);
-
-            html! {
-            <>
-            <Level>
-                <LevelLeft>
-                    <LevelItem>
-                        <span class="icon-text">
-                            <span class="icon"><i class="fas fa-user"></i></span>
-                            <span> { &identity.display_name } </span>
-                        </span>
-                    </LevelItem>
-                    <LevelItem>
-                        <span class="icon-text">
-                            <span class="icon"><i class="fa-solid fa-message"></i></span>
-                            <span> { format!("{} Characters", count.characters) } </span>
-                        </span>
-                    </LevelItem>
-                </LevelLeft>
-                <LevelRight>
-                    <LevelItem>
-                        <span class="icon-text">
-                            <span class="icon"><i class="fas fa-clock"></i></span>
-                            <span> { dt } </span>
-                        </span>
-                    </LevelItem>
-                </LevelRight>
-            </Level>
-            <Link<Route> to={Route::Content{ cid: cid}} >
-                {&blog.content}
-            </Link<Route>>
-            </>
-            }
-        }
         Media::Blog(article) => {
             html! {
             <>
@@ -84,15 +49,17 @@ pub fn pure_thumbnail(props: &ThumbnailProps) -> Html {
                     <LevelItem>
                         <span class="icon-text">
                             <span class="icon"><i class="fas fa-user"></i></span>
-                            <span> { &identity.display_name } </span>
+                            <span> { &identity.name } </span>
                         </span>
                     </LevelItem>
-                    <LevelItem>
-                        <span class="icon-text">
-                            <span class="icon"><i class="fa-solid fa-newspaper"></i></span>
-                            <span> { "XXXX Words" } </span>
-                        </span>
-                    </LevelItem>
+                    if let Some(count) = article.word_count {
+                        <LevelItem>
+                            <span class="icon-text">
+                                <span class="icon"><i class="fa-solid fa-newspaper"></i></span>
+                                <span> { &format!("{} Words", count) } </span>
+                            </span>
+                        </LevelItem>
+                    }
                 </LevelLeft>
                 <LevelRight>
                     <LevelItem>
@@ -103,18 +70,18 @@ pub fn pure_thumbnail(props: &ThumbnailProps) -> Html {
                     </LevelItem>
                 </LevelRight>
             </Level>
-            <Title classes={classes!("has-text-centered")} size={HeaderSize::Is4} >
-                {&article.title }
-            </Title>
             <Link<Route> to={Route::Content{ cid: cid}} >
-                <IPFSImage key={article.image.link.to_string()} cid={article.image.link} size={ImageSize::Is16by9} rounded=false />
+                <Title classes={classes!("has-text-centered")} size={HeaderSize::Is4} >
+                    {&article.title }
+                </Title>
+                if let Some(image) = article.image {
+                    <IPFSImage key={image.link.to_string()} cid={image.link} size={ImageSize::Is16by9} rounded=false />
+                }
             </Link<Route>>
             </>
             }
         }
         Media::Video(video) => {
-            let (hour, minute, second) = utils::seconds_to_timecode(video.duration);
-
             html! {
             <>
             <Level>
@@ -122,15 +89,25 @@ pub fn pure_thumbnail(props: &ThumbnailProps) -> Html {
                     <LevelItem>
                         <span class="icon-text">
                             <span class="icon"><i class="fas fa-user"></i></span>
-                            <span> { &identity.display_name } </span>
+                            <span> { &identity.name } </span>
                         </span>
                     </LevelItem>
-                    <LevelItem>
-                        <span class="icon-text">
-                            <span class="icon"><i class="fas fa-video"></i></span>
-                            <span> { &format!("{}:{}:{}", hour, minute, second) } </span>
-                        </span>
-                    </LevelItem>
+                    {
+                        if let Some(duration) = video.duration {
+                            let (hour, minute, second) = utils::seconds_to_timecode(duration);
+
+                            html!{
+                            <LevelItem>
+                                <span class="icon-text">
+                                    <span class="icon"><i class="fas fa-video"></i></span>
+                                    <span> { &format!("{}:{}:{}", hour, minute, second) } </span>
+                                </span>
+                            </LevelItem>
+                            }
+                        } else {
+                            html!{}
+                        }
+                    }
                 </LevelLeft>
                 <LevelRight>
                     <LevelItem>
@@ -141,11 +118,13 @@ pub fn pure_thumbnail(props: &ThumbnailProps) -> Html {
                     </LevelItem>
                 </LevelRight>
             </Level>
-            <Title classes={classes!("has-text-centered")} size={HeaderSize::Is4} >
-                {&video.title }
-            </Title>
             <Link<Route> to={Route::Content{ cid: cid}} >
-                <IPFSImage key={video.image.link.to_string()} cid={video.image.link} size={ImageSize::Is16by9} rounded=false />
+                <Title classes={classes!("has-text-centered")} size={HeaderSize::Is4} >
+                    {&video.title }
+                </Title>
+                if let Some(image) = video.image {
+                    <IPFSImage key={image.link.to_string()} cid={image.link} size={ImageSize::Is16by9} rounded=false />
+                }
             </Link<Route>>
             </>
             }
@@ -160,7 +139,7 @@ pub fn pure_thumbnail(props: &ThumbnailProps) -> Html {
                     <LevelItem>
                         <span class="icon-text">
                             <span class="icon"><i class="fas fa-user"></i></span>
-                            <span> { &identity.display_name } </span>
+                            <span> { &identity.name } </span>
                         </span>
                     </LevelItem>
                     <LevelItem>

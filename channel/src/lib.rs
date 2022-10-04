@@ -191,7 +191,7 @@ impl ChannelPage {
                             <LevelItem>
                                 <span class="icon-text">
                                     <span class="icon"><i class="fas fa-user"></i></span>
-                                    <span> { &identity.display_name } </span>
+                                    <span> { &identity.name } </span>
                                 </span>
                             </LevelItem>
                             <LevelItem>

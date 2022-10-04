@@ -239,7 +239,7 @@ impl ContentPage {
         self.comments
             .iter()
             .filter_map(|(cid, comment)| {
-                if origin != comment.origin {
+                if origin != comment.origin.expect("Comment") {
                     return None;
                 }
 

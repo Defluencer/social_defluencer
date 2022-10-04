@@ -310,7 +310,8 @@ impl VideoPlayer {
                 Either::Left(live)
             }
             Either::Right(metadata) => {
-                self.media_source.set_duration(metadata.duration);
+                self.media_source
+                    .set_duration(metadata.duration.expect("Video Duration"));
 
                 spawn_local({
                     let ipfs = self.ipfs.clone();
@@ -918,7 +919,7 @@ impl VideoPlayer {
         }
 
         if let Some(Either::Right(metadata)) = &self.player_type {
-            if buff_end >= metadata.duration {
+            if buff_end >= metadata.duration.expect("Video Duration") {
                 #[cfg(debug_assertions)]
                 info!("End Of Video");
                 return;

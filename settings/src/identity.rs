@@ -341,7 +341,7 @@ impl IdentitySettings {
                 let set_cb = ctx.link().callback(move |_: MouseEvent| Msg::SetID(cid));
                 let delete_cb = ctx.link().callback(move |_: MouseEvent| Msg::DeleteID(cid));
 
-                let channel = if let Some(addr) = identity.channel_ipns {
+                let channel = if let Some(addr) = identity.ipns_addr {
                     html! {
                     <LevelItem>
                         <ButtonRouter<Route> route={Route::Channel { addr: addr.into() }}>
@@ -360,7 +360,7 @@ impl IdentitySettings {
                 <Level>
                     <LevelLeft>
                         <LevelItem>
-                            { &identity.display_name }
+                            { &identity.name }
                         </LevelItem>
                         <LevelItem>
                             <Button {disabled} onclick={set_cb} >
@@ -413,9 +413,9 @@ impl IdentitySettings {
 
         let user = Some(UserContext::new(ipfs.clone(), signer, cid));
 
-        let channel = if let Some(addr) = identity.channel_ipns {
+        let channel = if let Some(addr) = identity.ipns_addr {
             use heck::ToSnakeCase;
-            let key = identity.display_name.to_snake_case();
+            let key = identity.name.to_snake_case();
 
             let context = ChannelContext::new(ipfs, key, addr);
 
@@ -459,9 +459,9 @@ impl IdentitySettings {
 
             let user = Some(UserContext::new(ipfs.clone(), signer, cid));
 
-            let channel = if let Some(addr) = identity.channel_ipns {
+            let channel = if let Some(addr) = identity.ipns_addr {
                 use heck::ToSnakeCase;
-                let key = identity.display_name.to_snake_case();
+                let key = identity.name.to_snake_case();
 
                 let context = ChannelContext::new(ipfs, key, addr);
 
@@ -617,7 +617,7 @@ impl IdentitySettings {
 
         if let Some(identity) = self.identity_map.remove(&cid) {
             use heck::ToSnakeCase;
-            let key = identity.display_name.to_snake_case();
+            let key = identity.name.to_snake_case();
 
             let (context, _) = ctx
                 .link()
@@ -636,8 +636,8 @@ async fn create_identity(
     ipfs: IpfsService,
     file: SysFile,
     channel: bool,
-    display_name: String,
-    addr: Address,
+    name: String,
+    eth_addr: Address,
     cb: Callback<(Cid, Identity)>,
 ) {
     let avatar = match defluencer::utils::add_image(&ipfs, file).await {
@@ -648,13 +648,11 @@ async fn create_identity(
         }
     };
 
-    let addr = Some(display_address(addr));
-
     let mut identity = Identity {
-        display_name,
+        name,
         avatar,
-        channel_ipns: None,
-        addr,
+        eth_addr: Some(display_address(eth_addr)),
+        ..Default::default()
     };
 
     let cid = match ipfs.dag_put(&identity, Codec::default()).await {
@@ -674,7 +672,7 @@ async fn create_identity(
             }
         };
 
-        identity.channel_ipns = Some(channel.get_address());
+        identity.ipns_addr = Some(channel.get_address());
 
         cb.emit((cid, identity));
 

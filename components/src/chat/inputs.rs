@@ -77,7 +77,7 @@ impl Component for ChatInputs {
         match msg {
             Msg::Name(name) => self.on_name_input(name),
             Msg::ConfirmName => self.on_name_confirm(ctx),
-            Msg::Identity((_, identity)) => self.on_name_input(identity.display_name),
+            Msg::Identity((_, identity)) => self.on_name_input(identity.name),
             Msg::Message(msg) => self.on_chat_input(ctx, msg),
             Msg::Enter => self.send_message(ctx),
             Msg::Signature(cid) => self.on_signature(cid),

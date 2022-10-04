@@ -52,12 +52,12 @@ pub fn pure_content(props: &ContentProps) -> Html {
     let mut name = html! {
         <span class="icon-text">
             <span class="icon"><i class="fas fa-user"></i></span>
-            <span> { &identity.display_name } </span>
+            <span> { &identity.name } </span>
         </span>
     };
 
     if Some(media.identity()) != user_addr {
-        if let Some(addr) = identity.channel_ipns {
+        if let Some(addr) = identity.ipns_addr {
             name = html! {
                 <Link<Route> to={Route::Channel{ addr: addr.into()}} >
                     {name}
@@ -67,7 +67,6 @@ pub fn pure_content(props: &ContentProps) -> Html {
     }
 
     let content = match media {
-        Media::MicroBlog(blog) => html! {<ybc::Content>{&blog.content}</ybc::Content>},
         Media::Blog(article) => {
             html! {
                 <ybc::Content>
@@ -76,8 +75,6 @@ pub fn pure_content(props: &ContentProps) -> Html {
             }
         }
         Media::Video(video) => {
-            let (hour, minute, second) = utils::seconds_to_timecode(video.duration);
-
             html! {
             <>
                 <Block>
@@ -90,12 +87,22 @@ pub fn pure_content(props: &ContentProps) -> Html {
                                 {&video.title }
                             </Title>
                         </LevelItem>
-                        <LevelItem>
-                            <span class="icon-text">
-                                <span class="icon"><i class="fas fa-video"></i></span>
-                                <span> { &format!("{}:{}:{}", hour, minute, second) } </span>
-                            </span>
-                        </LevelItem>
+                        {
+                            if let Some(duration) = video.duration {
+                                let (hour, minute, second) = utils::seconds_to_timecode(duration);
+
+                                html!{
+                                <LevelItem>
+                                    <span class="icon-text">
+                                        <span class="icon"><i class="fas fa-video"></i></span>
+                                        <span> { &format!("{}:{}:{}", hour, minute, second) } </span>
+                                    </span>
+                                </LevelItem>
+                                }
+                            } else {
+                                html!{}
+                            }
+                        }
                     </LevelLeft>
                 </Level>
             </>

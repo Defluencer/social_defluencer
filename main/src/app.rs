@@ -206,9 +206,9 @@ async fn get_context(
         (Some(ipfs), Some(ipld)) => {
             match ipfs.client.dag_get::<&str, Identity>(ipld.link, None).await {
                 Ok(identity) => {
-                    if let Some(addr) = identity.channel_ipns {
+                    if let Some(addr) = identity.ipns_addr {
                         use heck::ToSnakeCase;
-                        let key = identity.display_name.to_snake_case();
+                        let key = identity.name.to_snake_case();
 
                         let context = ChannelContext::new(ipfs.client.clone(), key, addr);
 

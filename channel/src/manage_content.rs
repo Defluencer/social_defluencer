@@ -31,7 +31,7 @@ pub struct ManageContent {
     modal: Modals,
     close_modal_cb: Callback<MouseEvent>,
 
-    manage_cb: Callback<MouseEvent>,
+    create_cb: Callback<MouseEvent>,
 
     title: String,
     title_cb: Callback<String>,
@@ -44,6 +44,9 @@ pub struct ManageContent {
 
     form_cid: Cid,
     form_cid_cb: Callback<String>,
+
+    word_count: u64,
+    word_cb: Callback<String>,
 
     remove_modal_cb: Callback<MouseEvent>,
 
@@ -68,6 +71,7 @@ pub enum Msg {
     Image(Vec<SysFile>),
     Markdown(Vec<SysFile>),
     FormCid(String),
+    WordCount(String),
     Result(Cid),
 }
 
@@ -87,6 +91,7 @@ impl Component for ManageContent {
         let img_file_cb = ctx.link().callback(Msg::Image);
         let md_file_cb = ctx.link().callback(Msg::Markdown);
         let form_cid_cb = ctx.link().callback(Msg::FormCid);
+        let word_cb = ctx.link().callback(Msg::WordCount);
 
         Self {
             video_modal_cb,
@@ -107,7 +112,10 @@ impl Component for ManageContent {
             form_cid: Cid::default(),
             form_cid_cb,
 
-            manage_cb: create_cb,
+            word_count: 0,
+            word_cb,
+
+            create_cb,
 
             remove_modal_cb,
 
@@ -125,6 +133,7 @@ impl Component for ManageContent {
             Msg::Image(images) => self.on_images(images),
             Msg::Markdown(markdowns) => self.on_markdowns(markdowns),
             Msg::FormCid(cid_string) => self.on_form_cid(&cid_string),
+            Msg::WordCount(count) => self.on_word_count(count),
             Msg::Result(_) => self.on_result(),
         }
     }
@@ -201,6 +210,11 @@ impl ManageContent {
                         <File name="markdown" files={self.markdowns.clone()} update={self.makdown_cb.clone()} selector_label={"Choose a file..."} selector_icon={html!{<i class="fas fa-upload"></i>}} has_name={Some("markdown.md")} fullwidth=true />
                     </Control>
                 </Field>
+                <Field label="Word Count" >
+                    <Control>
+                        <Input name="word_count" value="" update={self.word_cb.clone()} />
+                    </Control>
+                </Field>
             </section>
                 },
             Modals::Video => html! {
@@ -247,7 +261,7 @@ impl ManageContent {
                 </header>
                 { modal_card_body }
                 <footer class="modal-card-foot">
-                    <Button onclick={self.manage_cb.clone()} loading={self.loading} disabled={self.disabled} >
+                    <Button onclick={self.create_cb.clone()} loading={self.loading} disabled={self.disabled} >
                         if self.modal != Modals::Remove { {"Create"} } else { {"Remove"} }
                     </Button>
                     <Button onclick={self.close_modal_cb.clone()}>
@@ -289,6 +303,7 @@ impl ManageContent {
                 self.title.clone(),
                 self.images.pop().unwrap(),
                 self.markdowns.pop().unwrap(),
+                self.word_count,
                 ctx.link().callback(Msg::Result),
             )),
             Modals::Video => spawn_local(create_video_post(
@@ -385,6 +400,26 @@ impl ManageContent {
 
         true
     }
+
+    fn on_word_count(&mut self, count: String) -> bool {
+        if count.is_empty() {
+            self.disabled = true;
+            return true;
+        }
+
+        self.word_count = match count.parse::<u64>() {
+            Ok(count) => count,
+            Err(e) => {
+                error!(&format!("{:#?}", e));
+                self.disabled = true;
+                return true;
+            }
+        };
+
+        self.disabled = false;
+
+        true
+    }
 }
 
 async fn create_micro_post(
@@ -435,9 +470,13 @@ async fn create_article(
     title: String,
     image: SysFile,
     markdown: SysFile,
+    word_count: u64,
     callback: Callback<Cid>,
 ) {
-    let cid = match user.create_blog_post(title, image, markdown, false).await {
+    let cid = match user
+        .create_blog_post(title, Some(image), markdown, Some(word_count), false)
+        .await
+    {
         Ok((cid, _)) => cid,
         Err(e) => {
             error!(&format!("{:#?}", e));
