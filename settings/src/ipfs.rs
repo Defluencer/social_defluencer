@@ -1,5 +1,6 @@
 #![cfg(target_arch = "wasm32")]
 
+use linked_data::types::PeerId;
 use ybc::{Block, Container, Section, Subtitle, Tabs};
 
 use yew::{context::ContextHandle, platform::spawn_local, prelude::*};
@@ -16,8 +17,6 @@ use wasm_bindgen::JsCast;
 
 use gloo_console::{error, info};
 
-use cid::Cid;
-
 #[derive(Properties, PartialEq)]
 pub struct Props {
     pub context_cb: Callback<(
@@ -29,7 +28,7 @@ pub struct Props {
 }
 
 pub struct IPFSSettings {
-    peer_id: Option<Cid>,
+    peer_id: Option<PeerId>,
     _context_handle: Option<ContextHandle<IPFSContext>>,
 
     address: String,
@@ -207,12 +206,12 @@ impl IPFSSettings {
         }
     }
 
-    fn render_connected(&self, peer_id: Cid) -> Html {
+    fn render_connected(&self, peer_id: PeerId) -> Html {
         html! {
             <div class="field">
                 <label class="label"> { "Peer ID" } </label>
                 <div class="control is-expanded">
-                    <input name="ipfs_addrs" value={peer_id.to_string()} class="input is-static" type="text" readonly=true />
+                    <input name="ipfs_addrs" value={peer_id.to_legacy_string()} class="input is-static" type="text" readonly=true />
                 </div>
                 <p class="help"> { "A unique string identifing this node on the network." } </p>
             </div>
@@ -235,16 +234,17 @@ impl IPFSSettings {
                 </span>
                 </Block>
                 <Block>
-                <h2 class="subtitle">
-                    { "Follow the installation guide in the " }
-                    <a href="https://docs.ipfs.io/how-to/command-line-quick-start/"> { "IPFS Documentation" } </a>
-                    { " or configure your node correctly." }
-                </h2>
-                </Block>
-                <Block>
                 <ol>
                     <li>
-                        <p>{ "Is your IPFS daemon running? Start your daemon with the terminal command below." }</p>
+                        <p>
+                            {"Is IPFS installed? Follow the installation guide in the "}
+                            <a href="https://docs.ipfs.tech/install/ipfs-desktop/#install-instructions">
+                            { "IPFS Documentation" }
+                            </a>
+                        </p>
+                    </li>
+                    <li>
+                        <p>{ "Is your IPFS daemon running? Start your daemon with the terminal command below or via IPFS Desktop" }</p>
                         <div style="white-space: nowrap;overflow-x: auto;overflow-y: hidden;">
                             <code style="display: block"> { "ipfs daemon --enable-pubsub-experiment --enable-namesys-pubsub" } </code>
                         </div>
@@ -255,7 +255,11 @@ impl IPFSSettings {
                             <a href="https://github.com/ipfs-shipyard/ipfs-webui#configure-ipfs-api-cors-headers">
                                 {"cross-origin (CORS) requests"}
                             </a>
-                            {"? If not, run these terminal commands and restart your daemon."}
+                            {"? If not, run these terminal commands or update your "}
+                            <a href="https://webui.ipfs.io/#/settings">
+                                {"IPFS config"}
+                            </a>
+                            {" and then restart your daemon."}
                         </p>
                         <Tabs classes={classes!("is-small")} >
                             <li class={if let OsType::Unix = self.os_type {"is-active"} else {""}} >

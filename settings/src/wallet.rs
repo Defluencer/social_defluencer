@@ -121,7 +121,7 @@ impl WalletSettings {
     fn render_unconnected(&self) -> Html {
         html! {
             <Button onclick={self.wallet_cb.clone()}>
-                {"Connect Wallet"}
+                {"Connect"}
             </Button>
         }
     }

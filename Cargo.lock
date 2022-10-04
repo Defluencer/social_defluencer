@@ -368,7 +368,7 @@ dependencies = [
 [[package]]
 name = "dag-jose"
 version = "0.1.0"
-source = "git+https://github.com/Defluencer/rust-defluencer?branch=develop#b1340a4e3f259225cbbb2dabc436d56f190d2ead"
+source = "git+https://github.com/Defluencer/rust-defluencer?branch=develop#d277f3915e5a78d0c8ed9f6112203923e1e0a60a"
 dependencies = [
  "cid",
  "ed25519",
@@ -448,7 +448,7 @@ dependencies = [
 [[package]]
 name = "defluencer"
 version = "0.1.0"
-source = "git+https://github.com/Defluencer/rust-defluencer?branch=develop#b1340a4e3f259225cbbb2dabc436d56f190d2ead"
+source = "git+https://github.com/Defluencer/rust-defluencer?branch=develop#d277f3915e5a78d0c8ed9f6112203923e1e0a60a"
 dependencies = [
  "async-recursion",
  "async-trait",
@@ -1245,7 +1245,7 @@ dependencies = [
 [[package]]
 name = "ipfs-api"
 version = "0.1.0"
-source = "git+https://github.com/Defluencer/rust-defluencer?branch=develop#b1340a4e3f259225cbbb2dabc436d56f190d2ead"
+source = "git+https://github.com/Defluencer/rust-defluencer?branch=develop#d277f3915e5a78d0c8ed9f6112203923e1e0a60a"
 dependencies = [
  "bytes",
  "cid",
@@ -1267,7 +1267,7 @@ checksum = "879d54834c8c76457ef4293a689b2a8c59b076067ad77b15efafbb05f92a592b"
 [[package]]
 name = "ipns-records"
 version = "0.1.0"
-source = "git+https://github.com/Defluencer/rust-defluencer?branch=develop#b1340a4e3f259225cbbb2dabc436d56f190d2ead"
+source = "git+https://github.com/Defluencer/rust-defluencer?branch=develop#d277f3915e5a78d0c8ed9f6112203923e1e0a60a"
 dependencies = [
  "chrono",
  "cid",
@@ -1406,7 +1406,7 @@ checksum = "329c933548736bc49fd575ee68c89e8be4d260064184389a5b77517cddd99ffb"
 [[package]]
 name = "linked-data"
 version = "0.1.0"
-source = "git+https://github.com/Defluencer/rust-defluencer?branch=develop#b1340a4e3f259225cbbb2dabc436d56f190d2ead"
+source = "git+https://github.com/Defluencer/rust-defluencer?branch=develop#d277f3915e5a78d0c8ed9f6112203923e1e0a60a"
 dependencies = [
  "bitvec 1.0.1",
  "cid",
@@ -2181,9 +2181,9 @@ dependencies = [
 
 [[package]]
 name = "smallvec"
-version = "1.9.0"
+version = "1.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2fd0db749597d91ff862fd1d55ea87f7855a744a8425a64695b6fca237d1dad1"
+checksum = "a507befe795404456341dfab10cef66ead4c041f62b8b11bbb92bffe5d0953e0"
 
 [[package]]
 name = "snafu"
