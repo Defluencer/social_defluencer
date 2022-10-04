@@ -23,7 +23,7 @@ use web_sys::File as SysFile;
 
 use ybc::{
     Button, ButtonRouter, Checkbox, Container, Control, Field, File, Input, Level, LevelItem,
-    LevelLeft, LevelRight, Section, Subtitle,
+    LevelLeft, LevelRight, Section, Subtitle, TextArea,
 };
 
 use yew::{platform::spawn_local, prelude::*};
@@ -75,8 +75,14 @@ pub struct IdentitySettings {
     channel: bool,
     channel_cb: Callback<bool>,
 
-    files: Vec<SysFile>,
-    file_cb: Callback<Vec<SysFile>>,
+    avatar_files: Vec<SysFile>,
+    avatar_file_cb: Callback<Vec<SysFile>>,
+
+    banner_files: Vec<SysFile>,
+    banner_file_cb: Callback<Vec<SysFile>>,
+
+    bio: String,
+    bio_cb: Callback<String>,
 
     create_cb: Callback<MouseEvent>,
     import_cb: Callback<MouseEvent>,
@@ -89,7 +95,9 @@ pub enum Msg {
     DeleteID(Cid),
     Name(String),
     Channel(bool),
-    Files(Vec<SysFile>),
+    Avatar(Vec<SysFile>),
+    Banner(Vec<SysFile>),
+    Bio(String),
     Create,
     Import,
 
@@ -142,9 +150,11 @@ impl Component for IdentitySettings {
 
         let name_cb = ctx.link().callback(Msg::Name);
         let channel_cb = ctx.link().callback(Msg::Channel);
-        let file_cb = ctx.link().callback(Msg::Files);
-        let identity_cb = ctx.link().callback(|_| Msg::Create);
+        let avatar_file_cb = ctx.link().callback(Msg::Avatar);
+        let banner_file_cb = ctx.link().callback(Msg::Banner);
+        let create_cb = ctx.link().callback(|_| Msg::Create);
         let import_cb = ctx.link().callback(|_| Msg::Import);
+        let bio_cb = ctx.link().callback(Msg::Bio);
 
         Self {
             modal: Modals::None,
@@ -165,10 +175,16 @@ impl Component for IdentitySettings {
             channel: false,
             channel_cb,
 
-            files: vec![],
-            file_cb,
+            avatar_files: vec![],
+            avatar_file_cb,
 
-            create_cb: identity_cb,
+            banner_files: vec![],
+            banner_file_cb,
+
+            bio: String::new(),
+            bio_cb,
+
+            create_cb,
             import_cb,
             loading: false,
         }
@@ -183,7 +199,9 @@ impl Component for IdentitySettings {
             Msg::SetID(cid) => self.on_set_identity(cid, ctx),
             Msg::Name(name) => self.on_name(name),
             Msg::Channel(channel) => self.on_channel(channel),
-            Msg::Files(files) => self.on_files(files),
+            Msg::Avatar(files) => self.on_avatar_files(files),
+            Msg::Banner(files) => self.on_banner_files(files),
+            Msg::Bio(text) => self.on_bio(text),
             Msg::Create => self.on_create(ctx),
             Msg::Import => self.on_import(ctx),
             Msg::IdentityCreated((cid, identity)) => self.on_identity_created(ctx, cid, identity),
@@ -241,24 +259,36 @@ impl IdentitySettings {
                     </button>
                 </header>
                 <section class="modal-card-body">
-                    <Field label="Display name" >
+                    <Field label="Name" >
                         <Control>
                             <Input name="name" value="" update={self.name_cb.clone()} />
                         </Control>
                     </Field>
-                    <Field label="Create a channel too?" help={"Takes ~2 minutes to publish a new channel"} >
+                    <Field label="Biography">
                         <Control>
-                            <Checkbox name="channel" checked=false update={self.channel_cb.clone()} />
+                            <TextArea name="bio" value="" update={self.bio_cb.clone()} placeholder={"Add a short bio..."} rows={4} fixed_size={true} />
                         </Control>
                     </Field>
                     <Field label="Avatar" >
                         <Control>
-                            <File name="avatar" files={self.files.clone()} update={self.file_cb.clone()} selector_label={"Choose an image..."} selector_icon={html!{<i class="fas fa-upload"></i>}} has_name={Some("image.jpg")} fullwidth=true />
+                            <File name="avatar" files={self.avatar_files.clone()} update={self.avatar_file_cb.clone()} selector_label={"Choose an image..."} selector_icon={html!{<i class="fas fa-upload"></i>}} has_name={Some("image.jpg")} fullwidth=true />
                         </Control>
                     </Field>
+                    <Field label="Create a channel?" help={"Takes ~2 minutes to publish a new channel"} >
+                        <Control>
+                            <Checkbox name="channel" checked={self.channel} update={self.channel_cb.clone()} />
+                        </Control>
+                    </Field>
+                    if self.channel {
+                        <Field label="Banner" >
+                            <Control>
+                                <File name="banner" files={self.banner_files.clone()} update={self.banner_file_cb.clone()} selector_label={"Choose an image..."} selector_icon={html!{<i class="fas fa-upload"></i>}} has_name={Some("image.jpg")} fullwidth=true />
+                            </Control>
+                        </Field>
+                    }
                 </section>
                 <footer class="modal-card-foot">
-                    <Button onclick={self.create_cb.clone()} loading={self.loading} disabled={self.files.is_empty()} >
+                    <Button onclick={self.create_cb.clone()} loading={self.loading} disabled={self.name.is_empty()} >
                         { "Create" }
                     </Button>
                     <Button onclick={self.close_modal_cb.clone()}>
@@ -506,12 +536,32 @@ impl IdentitySettings {
         true
     }
 
-    fn on_files(&mut self, files: Vec<SysFile>) -> bool {
-        if self.files == files {
+    fn on_avatar_files(&mut self, files: Vec<SysFile>) -> bool {
+        if self.avatar_files == files {
             return false;
         }
 
-        self.files = files;
+        self.avatar_files = files;
+
+        true
+    }
+
+    fn on_banner_files(&mut self, files: Vec<SysFile>) -> bool {
+        if self.banner_files == files {
+            return false;
+        }
+
+        self.banner_files = files;
+
+        true
+    }
+
+    fn on_bio(&mut self, text: String) -> bool {
+        if self.bio == text {
+            return false;
+        }
+
+        self.bio = text;
 
         true
     }
@@ -531,9 +581,11 @@ impl IdentitySettings {
 
         spawn_local(create_identity(
             ipfs,
-            self.files.pop().unwrap(),
-            self.channel,
             self.name.clone(),
+            self.bio.clone(),
+            self.avatar_files.pop().unwrap(),
+            self.banner_files.pop().unwrap(),
+            self.channel,
             addr,
             ctx.link().callback(Msg::IdentityCreated),
         ));
@@ -634,13 +686,28 @@ impl IdentitySettings {
 
 async fn create_identity(
     ipfs: IpfsService,
-    file: SysFile,
-    channel: bool,
     name: String,
+    bio: String,
+    avatar_file: SysFile,
+    banner_file: SysFile,
+    channel: bool,
     eth_addr: Address,
     cb: Callback<(Cid, Identity)>,
 ) {
-    let avatar = match defluencer::utils::add_image(&ipfs, file).await {
+    let (avatar, banner) = futures_util::join!(
+        defluencer::utils::add_image(&ipfs, avatar_file),
+        defluencer::utils::add_image(&ipfs, banner_file)
+    );
+
+    let avatar = match avatar {
+        Ok(cid) => Some(cid.into()),
+        Err(e) => {
+            error!(&format!("{:?}", e));
+            return;
+        }
+    };
+
+    let banner = match banner {
         Ok(cid) => Some(cid.into()),
         Err(e) => {
             error!(&format!("{:?}", e));
@@ -650,7 +717,9 @@ async fn create_identity(
 
     let mut identity = Identity {
         name,
+        bio: Some(bio),
         avatar,
+        banner,
         eth_addr: Some(display_address(eth_addr)),
         ..Default::default()
     };

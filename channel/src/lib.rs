@@ -22,7 +22,10 @@ use utils::{
     ipfs::IPFSContext,
 };
 
-use ybc::{Box, Button, Container, ImageSize, Level, LevelItem, LevelLeft, LevelRight, Section};
+use ybc::{
+    Block, Box, Button, Container, Content, ImageSize, LevelItem, LevelLeft, MediaContent,
+    MediaLeft, MediaRight, Section,
+};
 
 use yew::{platform::spawn_local, prelude::*};
 
@@ -174,67 +177,95 @@ impl Component for ChannelPage {
 
 impl ChannelPage {
     fn render_channel(&self, ctx: &Context<ChannelPage>, meta: &ChannelMetadata) -> Html {
+        let content = if !self.content.is_empty() {
+            self.content
+                .iter()
+                .filter_map(|(cid, media)| {
+                    let cid = *cid;
+                    let media = media.clone();
+
+                    let identity = match self.identities.get(&media.identity().link) {
+                        Some(id) => id.clone(),
+                        None => return None,
+                    };
+
+                    return Some(html! {
+                    <Box>
+                        <Thumbnail key={cid.to_string()} {cid} {media} {identity} />
+                    </Box>
+                    });
+                })
+                .collect::<Html>()
+        } else {
+            html!(<Searching />)
+        };
+
         html! {
         <>
             <NavigationBar />
-            <Section>
+
                 <Container>
                 if let Some(identity) = self.identities.get(&meta.identity.link) {
-                    //TODO display channel branding, friends & general info
-                    <Level>
-                        <LevelLeft>
+                    if let Some(banner) = identity.banner {
+                        <Block>
+                            <IPFSImage cid={banner.link} size={ImageSize::Is3by1} rounded=false />
+                        </Block>
+                    }
+                    <ybc::Media>
+                        <MediaLeft>
+                            <Block>
                             if let Some(avatar) = identity.avatar {
-                                <LevelItem>
-                                    <IPFSImage cid={avatar.link} size={ImageSize::Is64x64} rounded=true />
-                                </LevelItem>
+                                <IPFSImage cid={avatar.link} size={ImageSize::Is64x64} rounded=true />
                             }
-                            <LevelItem>
-                                <span class="icon-text">
-                                    <span class="icon"><i class="fas fa-user"></i></span>
-                                    <span> { &identity.name } </span>
-                                </span>
-                            </LevelItem>
-                            <LevelItem>
-                                <Button onclick={self.follow_cb.clone()} >
-                                {
-                                    if self.following {"Unfollow"} else {"Follow"}
-                                }
-                                </Button>
-                            </LevelItem>
-                        </LevelLeft>
-                        <LevelRight>
+                            </Block>
+                        </MediaLeft>
+                        <MediaContent>
+                            <LevelLeft>
+                                <LevelItem>
+                                    <span class="icon-text">
+                                        <span class="icon"><i class="fas fa-user"></i></span>
+                                        <span><strong>{&identity.name}</strong></span>
+                                    </span>
+                                </LevelItem>
+                                <LevelItem>
+                                    <Button classes={classes!("is-small", "is-rounded")} onclick={self.follow_cb.clone()} >
+                                    {
+                                        if self.following {"Unfollow"} else {"Follow"}
+                                    }
+                                    </Button>
+                                </LevelItem>
+                            </LevelLeft>
+                        if let Some(eth_addr) = &identity.eth_addr {
+                            <span class="icon-text">
+                                <span class="icon"><i class="fa-brands fa-ethereum"></i></span>
+                                <span><small>{eth_addr}</small></span>
+                            </span>
+                        }
+                        <br/>
+                        if let Some(btc_addr) = &identity.btc_addr {
+                            <span class="icon-text">
+                                <span class="icon"><i class="fa-brands fa-btc"></i></span>
+                                <span><small>{btc_addr}</small></span>
+                            </span>
+                        }
+                        if let Some(bio) = &identity.bio {
+                            <Content>{ bio }</Content>
+                        }
+                        </MediaContent>
+                        <MediaRight>
                             <DagExplorer key={meta.identity.link.to_string()} cid={meta.identity.link} />
-                        </LevelRight>
-                    </Level>
+                        </MediaRight>
+                    </ybc::Media>
                     if self.own_channel
                     {
                         <ManageContent addr={ctx.props().addr} />
                     }
                 }
                 </Container>
-            </Section>
+
             <Section>
                 <Container>
-                {
-                    self.content
-                        .iter()
-                        .filter_map(|(cid, media)| {
-                            let cid = *cid;
-                            let media = media.clone();
-
-                            let identity = match self.identities.get(&media.identity().link) {
-                                Some(id) => id.clone(),
-                                None => return None,
-                            };
-
-                            return Some(html! {
-                            <Box>
-                                <Thumbnail key={cid.to_string()} {cid} {media} {identity} />
-                            </Box>
-                            });
-                        })
-                        .collect::<Html>()
-                }
+                { content }
                 </Container>
             </Section>
         </>
@@ -259,13 +290,13 @@ impl ChannelPage {
             return false;
         }
 
-        if let Some(index) = metadata.content_index {
-            let (context, _) = ctx
-                .link()
-                .context::<IPFSContext>(Callback::noop())
-                .expect("IPFS Context");
-            let ipfs = context.client;
+        let (context, _) = ctx
+            .link()
+            .context::<IPFSContext>(Callback::noop())
+            .expect("IPFS Context");
+        let ipfs = context.client;
 
+        if let Some(index) = metadata.content_index {
             self.content.clear();
 
             let (handle, regis) = AbortHandle::new_pair();
@@ -280,19 +311,19 @@ impl ChannelPage {
             if let Some(handle) = self.stream_handle.replace(handle) {
                 handle.abort();
             }
+        }
 
-            if !self.identities.contains_key(&metadata.identity.link) {
-                spawn_local(utils::r#async::get_identity(
-                    ipfs,
-                    metadata.identity.link,
-                    self.identity_cb.clone(),
-                ));
-            }
+        if !self.identities.contains_key(&metadata.identity.link) {
+            spawn_local(utils::r#async::get_identity(
+                ipfs,
+                metadata.identity.link,
+                self.identity_cb.clone(),
+            ));
         }
 
         self.metadata = Some(metadata);
 
-        false
+        true
     }
 
     fn on_content_discovered(&mut self, ctx: &Context<Self>, cid: Cid, media: Media) -> bool {

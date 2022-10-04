@@ -2090,6 +2090,7 @@ dependencies = [
  "cid",
  "components",
  "defluencer",
+ "futures-util",
  "gloo-console",
  "gloo-storage",
  "heck",
