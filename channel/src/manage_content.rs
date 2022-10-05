@@ -200,17 +200,17 @@ impl ManageContent {
                         <Input name="title" value="" update={self.title_cb.clone()} />
                     </Control>
                 </Field>
-                <Field label="Image File" >
-                    <Control>
-                        <File name="image" files={self.images.clone()} update={self.image_cb.clone()} selector_label={"Choose an image..."} selector_icon={html!{<i class="fas fa-upload"></i>}} has_name={Some("image.jpg")} fullwidth=true />
-                    </Control>
-                </Field>
                 <Field label="Markdown File" >
                     <Control>
                         <File name="markdown" files={self.markdowns.clone()} update={self.makdown_cb.clone()} selector_label={"Choose a file..."} selector_icon={html!{<i class="fas fa-upload"></i>}} has_name={Some("markdown.md")} fullwidth=true />
                     </Control>
                 </Field>
-                <Field label="Word Count" >
+                <Field label="Thumbnail Image" help={"Less than 1MB, 16 by 9 ratio, .PNG or .JPG (optional)"} >
+                    <Control>
+                        <File name="image" files={self.images.clone()} update={self.image_cb.clone()} selector_label={"Choose an image..."} selector_icon={html!{<i class="fas fa-upload"></i>}} has_name={Some("image.jpg")} fullwidth=true />
+                    </Control>
+                </Field>
+                <Field label="Word Count" help={"Total number of words. (optional)"} >
                     <Control>
                         <Input name="word_count" value="" update={self.word_cb.clone()} />
                     </Control>
@@ -224,12 +224,12 @@ impl ManageContent {
                         <Input name="title" value="" update={self.title_cb.clone()} />
                     </Control>
                 </Field>
-                <Field label="Processed Video CID" >
+                <Field label="Processed Video CID" help={"Use the Defluencer CLI to transcode your videos."} >
                     <Control>
                         <Input name="video_cid" value="" update={self.form_cid_cb.clone()} />
                     </Control>
                 </Field>
-                <Field label="Image File" >
+                <Field label="Thumbnail Image" help={"Less than 1MB, 16 by 9 ratio, .PNG or .JPG (optional)"} >
                     <Control>
                         <File name="image" files={self.images.clone()} update={self.image_cb.clone()} selector_label={"Choose an image..."} selector_icon={html!{<i class="fas fa-upload"></i>}} has_name={Some("image.jpg")} fullwidth=true />
                     </Control>
@@ -238,7 +238,7 @@ impl ManageContent {
             },
             Modals::Remove => html! {
             <section class="modal-card-body">
-                <Field label="Content CID" >
+                <Field label="Content CID" help={"Remove the content from YOUR channel."} >
                     <Control>
                         <Input name="cid" value="" update={self.form_cid_cb.clone()} />
                     </Control>
@@ -254,7 +254,7 @@ impl ManageContent {
             <div class="modal-card">
                 <header class="modal-card-head">
                     <p class="modal-card-title">
-                        { "Manage Content" }
+                        { "Content" }
                     </p>
                     <button class="delete" aria-label="close" onclick={self.close_modal_cb.clone()} >
                     </button>

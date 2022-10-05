@@ -203,7 +203,6 @@ impl ChannelPage {
         html! {
         <>
             <NavigationBar />
-
                 <Container>
                 if let Some(identity) = self.identities.get(&meta.identity.link) {
                     if let Some(banner) = identity.banner {
@@ -262,10 +261,9 @@ impl ChannelPage {
                     }
                 }
                 </Container>
-
             <Section>
                 <Container>
-                { content }
+                    { content }
                 </Container>
             </Section>
         </>

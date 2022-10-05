@@ -49,23 +49,29 @@ pub fn pure_thumbnail(props: &ThumbnailProps) -> Html {
                     <LevelItem>
                         <span class="icon-text">
                             <span class="icon"><i class="fas fa-user"></i></span>
-                            <span> { &identity.name } </span>
+                            <span><strong>{ &identity.name }</strong></span>
                         </span>
                     </LevelItem>
                     if let Some(count) = article.word_count {
                         <LevelItem>
                             <span class="icon-text">
                                 <span class="icon"><i class="fa-solid fa-newspaper"></i></span>
-                                <span> { &format!("{} Words", count) } </span>
+                                <span><small>{ &format!("{} Words", count) }</small></span>
                             </span>
                         </LevelItem>
                     }
+                    <LevelItem>
+                        <span class="icon-text">
+                            <span class="icon"><i class="fas fa-clock"></i></span>
+                            <span><small>{ dt }</small></span>
+                        </span>
+                    </LevelItem>
                 </LevelLeft>
                 <LevelRight>
                     <LevelItem>
                         <span class="icon-text">
-                            <span class="icon"><i class="fas fa-clock"></i></span>
-                            <span> { dt } </span>
+                            <span class="icon"><i class="fa-solid fa-fingerprint"></i></span>
+                            <span><small>{cid.to_string()}</small></span>
                         </span>
                     </LevelItem>
                 </LevelRight>
@@ -89,7 +95,7 @@ pub fn pure_thumbnail(props: &ThumbnailProps) -> Html {
                     <LevelItem>
                         <span class="icon-text">
                             <span class="icon"><i class="fas fa-user"></i></span>
-                            <span> { &identity.name } </span>
+                            <span><strong>{ &identity.name }</strong></span>
                         </span>
                     </LevelItem>
                     {
@@ -100,7 +106,7 @@ pub fn pure_thumbnail(props: &ThumbnailProps) -> Html {
                             <LevelItem>
                                 <span class="icon-text">
                                     <span class="icon"><i class="fas fa-video"></i></span>
-                                    <span> { &format!("{}:{}:{}", hour, minute, second) } </span>
+                                    <span><small>{ &format!("{}:{}:{}", hour, minute, second) }</small></span>
                                 </span>
                             </LevelItem>
                             }
@@ -108,12 +114,18 @@ pub fn pure_thumbnail(props: &ThumbnailProps) -> Html {
                             html!{}
                         }
                     }
+                    <LevelItem>
+                        <span class="icon-text">
+                            <span class="icon"><i class="fas fa-clock"></i></span>
+                            <span><small>{ dt }</small></span>
+                        </span>
+                    </LevelItem>
                 </LevelLeft>
                 <LevelRight>
                     <LevelItem>
                         <span class="icon-text">
-                            <span class="icon"><i class="fas fa-clock"></i></span>
-                            <span> { dt } </span>
+                            <span class="icon"><i class="fa-solid fa-fingerprint"></i></span>
+                            <span><small>{cid.to_string()}</small></span>
                         </span>
                     </LevelItem>
                 </LevelRight>
@@ -139,21 +151,27 @@ pub fn pure_thumbnail(props: &ThumbnailProps) -> Html {
                     <LevelItem>
                         <span class="icon-text">
                             <span class="icon"><i class="fas fa-user"></i></span>
-                            <span> { &identity.name } </span>
+                            <span><strong>{ &identity.name }</strong></span>
                         </span>
                     </LevelItem>
                     <LevelItem>
                         <span class="icon-text">
                             <span class="icon"><i class="fa-solid fa-comment"></i></span>
-                            <span> { format!("{} Characters", count.characters) } </span>
+                            <span><small>{ format!("{} Characters", count.characters) }</small></span>
+                        </span>
+                    </LevelItem>
+                    <LevelItem>
+                        <span class="icon-text">
+                            <span class="icon"><i class="fas fa-clock"></i></span>
+                            <span><small>{ dt }</small></span>
                         </span>
                     </LevelItem>
                 </LevelLeft>
                 <LevelRight>
                     <LevelItem>
                         <span class="icon-text">
-                            <span class="icon"><i class="fas fa-clock"></i></span>
-                            <span> { dt } </span>
+                            <span class="icon"><i class="fa-solid fa-fingerprint"></i></span>
+                            <span><small>{cid.to_string()}</small></span>
                         </span>
                     </LevelItem>
                 </LevelRight>
