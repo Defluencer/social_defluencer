@@ -97,7 +97,7 @@ impl Component for CommentButton {
         </Button>
         <div class= { if self.modal { "modal is-active" } else { "modal" } } >
             <div class="modal-background" onclick={self.modal_cb.clone()} ></div>
-            <div class="modal-content">
+            <div class="modal-content is-clipped">
                 <Box>
                     { ctx.props().children.clone() }
                 </Box>

@@ -17,8 +17,8 @@ pub fn explore_dag(props: &DagExplorerProps) -> Html {
     let href = format!("https://webui.ipfs.io/#/explore/{}", props.cid.to_string());
 
     html! {
-        <ButtonAnchor classes={classes!("is-small", "is-outlined", "is-primary")} {href} >
-            { "D.A.G. Explorer" }
+        <ButtonAnchor classes={classes!("is-small", "is-outlined", "is-primary", "is-rounded")} {href} >
+            <small>{ "D.A.G. Explorer" }</small>
         </ButtonAnchor>
     }
 }

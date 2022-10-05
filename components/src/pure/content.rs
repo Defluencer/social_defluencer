@@ -136,12 +136,18 @@ pub fn pure_content(props: &ContentProps) -> Html {
                         </span>
                     </LevelItem>
                     }
-                </LevelLeft>
-                <LevelRight>
                     <LevelItem>
                         <span class="icon-text">
                             <span class="icon"><i class="fas fa-clock"></i></span>
                             <span><small>{ dt }</small></span>
+                        </span>
+                    </LevelItem>
+                </LevelLeft>
+                <LevelRight>
+                    <LevelItem>
+                        <span class="icon-text">
+                            <span class="icon"><i class="fa-solid fa-fingerprint"></i></span>
+                            <span><small>{cid.to_string()}</small></span>
                         </span>
                     </LevelItem>
                 </LevelRight>
