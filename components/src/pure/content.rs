@@ -32,6 +32,8 @@ pub struct ContentProps {
 
     pub identity: Identity,
 
+    pub verified: Option<bool>,
+
     #[prop_or_default]
     pub children: Children,
 }
@@ -45,6 +47,7 @@ pub fn pure_content(props: &ContentProps) -> Html {
         cid,
         media,
         identity,
+        verified,
         children,
     } = props;
     let cid = *cid;
@@ -52,7 +55,7 @@ pub fn pure_content(props: &ContentProps) -> Html {
     let mut name = html! {
         <span class="icon-text">
             <span class="icon"><i class="fas fa-user"></i></span>
-            <span> { &identity.name } </span>
+            <span><strong>{ &identity.name }</strong></span>
         </span>
     };
 
@@ -95,7 +98,7 @@ pub fn pure_content(props: &ContentProps) -> Html {
                                 <LevelItem>
                                     <span class="icon-text">
                                         <span class="icon"><i class="fas fa-video"></i></span>
-                                        <span> { &format!("{}:{}:{}", hour, minute, second) } </span>
+                                        <span><small>{ &format!("{}:{}:{}", hour, minute, second) }</small></span>
                                     </span>
                                 </LevelItem>
                                 }
@@ -126,12 +129,19 @@ pub fn pure_content(props: &ContentProps) -> Html {
                     <LevelItem>
                         { name }
                     </LevelItem>
+                    if verified.is_some() && verified.unwrap() {
+                    <LevelItem>
+                        <span class="icon">
+                            <i class="fa-solid fa-check"></i>
+                        </span>
+                    </LevelItem>
+                    }
                 </LevelLeft>
                 <LevelRight>
                     <LevelItem>
                         <span class="icon-text">
                             <span class="icon"><i class="fas fa-clock"></i></span>
-                            <span> { dt } </span>
+                            <span><small>{ dt }</small></span>
                         </span>
                     </LevelItem>
                 </LevelRight>
@@ -145,11 +155,11 @@ pub fn pure_content(props: &ContentProps) -> Html {
                         </CommentButton>
                     </LevelItem>
                     if Some(media.identity()) != user_addr {
-                        <LevelItem>
-                            <ShareButton {cid} >
-                                <Thumbnail key={cid.to_string()} {cid} media={media.clone()} identity={identity.clone()} />
-                            </ShareButton>
-                        </LevelItem>
+                    <LevelItem>
+                        <ShareButton {cid} >
+                            <Thumbnail key={cid.to_string()} {cid} media={media.clone()} identity={identity.clone()} />
+                        </ShareButton>
+                    </LevelItem>
                     }
                 </LevelLeft>
             </Level>

@@ -151,7 +151,7 @@ impl Component for ContentPage {
             }
             Msg::Media((media, addr)) => {
                 if !self.identities.contains_key(&media.identity().link) {
-                    spawn_local(get_identity(
+                    spawn_local(utils::r#async::get_identity(
                         ipfs,
                         media.identity().link,
                         self.identity_cb.clone(),
@@ -179,7 +179,7 @@ impl Component for ContentPage {
                 }
 
                 if !self.identities.contains_key(&comment.identity.link) {
-                    spawn_local(get_identity(
+                    spawn_local(utils::r#async::get_identity(
                         ipfs,
                         comment.identity.link,
                         self.identity_cb.clone(),
@@ -198,22 +198,23 @@ impl Component for ContentPage {
         #[cfg(debug_assertions)]
         info!("Content Page View");
 
-        let content = match self.media.as_ref() {
-            Some(media) => match self.identities.get(&media.identity().link) {
-                Some(identity) => {
-                    html! { <Content key={ctx.props().cid.to_string()} cid={ctx.props().cid} media={media.clone()} identity={identity.clone() } /> }
-                }
-                None => html! { <Searching /> },
-            },
-            None => html! { <Searching /> },
-        };
+        let mut content = html! { <Searching /> };
+
+        if let Some(media) = self.media.as_ref() {
+            if let Some(identity) = self.identities.get(&media.identity().link) {
+                let verified = identity.eth_addr.is_some()
+                    && identity.eth_addr.as_ref().unwrap() == &self.addr;
+
+                content = html! { <Content key={ctx.props().cid.to_string()} cid={ctx.props().cid} media={media.clone()} identity={identity.clone()} {verified} /> };
+            }
+        }
 
         html! {
         <ContextProvider<CommentaryContext> context={self.commentary.clone()} >
             <NavigationBar />
             <Section>
                 <Container>
-                { content }
+                    { content }
                 </Container>
             </Section>
             <Section>
@@ -344,12 +345,5 @@ async fn stream_comments(
             Ok(tuple) => callback.emit(tuple),
             Err(e) => error!(&format!("{:#?}", e)),
         }
-    }
-}
-
-async fn get_identity(ipfs: IpfsService, cid: Cid, callback: Callback<(Cid, Identity)>) {
-    match ipfs.dag_get::<&str, Identity>(cid, None).await {
-        Ok(dag) => callback.emit((cid, dag)),
-        Err(e) => error!(&format!("{:#?}", e)),
     }
 }
