@@ -2097,7 +2097,6 @@ dependencies = [
  "ipfs-api",
  "linked-data",
  "utils",
- "wasm-bindgen",
  "web-sys",
  "ybc",
  "yew",

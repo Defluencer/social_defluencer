@@ -1,7 +1,8 @@
 #![cfg(target_arch = "wasm32")]
 
 use linked_data::types::PeerId;
-use ybc::{Block, Container, Section, Subtitle, Tabs};
+
+use ybc::{Block, Container, Control, Field, Input, Section, Subtitle, Tabs};
 
 use yew::{context::ContextHandle, platform::spawn_local, prelude::*};
 
@@ -10,10 +11,6 @@ use utils::{
     ipfs::{get_ipfs_addr, set_ipfs_addr, IPFSContext},
     web3::Web3Context,
 };
-
-use web_sys::{EventTarget, HtmlInputElement};
-
-use wasm_bindgen::JsCast;
 
 use gloo_console::{error, info};
 
@@ -32,7 +29,7 @@ pub struct IPFSSettings {
     _context_handle: Option<ContextHandle<IPFSContext>>,
 
     address: String,
-    address_cb: Callback<Event>,
+    address_cb: Callback<String>,
 
     os_type: OsType,
     win_cb: Callback<MouseEvent>,
@@ -42,7 +39,6 @@ pub struct IPFSSettings {
 }
 
 pub enum Msg {
-    //PeerId(Cid),
     Addrs(String),
     OsType(OsType),
 }
@@ -62,13 +58,7 @@ impl Component for IPFSSettings {
 
         let address = get_ipfs_addr();
 
-        let address_cb = ctx.link().callback(|e: Event| {
-            let target: EventTarget = e
-                .target()
-                .expect("Event should have a target when dispatched");
-
-            Msg::Addrs(target.unchecked_into::<HtmlInputElement>().value())
-        });
+        let address_cb = ctx.link().callback(Msg::Addrs);
 
         let win_cb = ctx
             .link()
@@ -111,22 +101,16 @@ impl Component for IPFSSettings {
         info!("IPFS Setting Update");
 
         match msg {
-            /* Msg::PeerId(peer) => {
-                self.peer_id = Some(peer);
-
-                true
-            } */
             Msg::Addrs(msg) => {
                 if msg != self.address {
+                    set_ipfs_addr(&msg);
+
                     spawn_local({
                         let cb = ctx.props().context_cb.clone();
                         let url = msg.clone();
-                        let addr = msg.clone();
 
                         async move {
                             if let Some(context) = IPFSContext::new(Some(&url)).await {
-                                set_ipfs_addr(&addr);
-
                                 cb.emit((Some(context), None, None, None));
                             }
                         }
@@ -177,13 +161,11 @@ impl Component for IPFSSettings {
                     </div>
                     <p class="help"> { "External nodes can be configured for better performace but Brave browser nodes are more conveniant." } </p>
                 </div> */
-                <div class="field">
-                    <label class="label"> { "API" } </label>
-                    <div class="control is-expanded">
-                        <input name="ipfs_addrs" value={self.address.clone()} onchange={self.address_cb.clone()} class="input" type="text" />
-                    </div>
-                    <p class="help"> { "Refresh to apply changes." } </p>
-                </div>
+                <Field label="API" help={"Refresh (F5) to apply changes."} >
+                    <Control expanded=true >
+                        <Input name="ipfs_addrs" value={self.address.clone()} update={self.address_cb.clone()} />
+                    </Control>
+                </Field>
             </Container>
         </Section>
         }
@@ -208,13 +190,11 @@ impl IPFSSettings {
 
     fn render_connected(&self, peer_id: PeerId) -> Html {
         html! {
-            <div class="field">
-                <label class="label"> { "Peer ID" } </label>
-                <div class="control is-expanded">
-                    <input name="ipfs_addrs" value={peer_id.to_legacy_string()} class="input is-static" type="text" readonly=true />
-                </div>
-                <p class="help"> { "A unique string identifing this node on the network." } </p>
-            </div>
+            <Field label="Peer ID" help={"A unique string identifing this node on the network."} >
+                <Control expanded=true >
+                    <Input name="ipfs_addrs" value={peer_id.to_legacy_string()} update={Callback::noop()} r#static=true readonly=true />
+                </Control>
+            </Field>
         }
     }
 
@@ -284,6 +264,9 @@ impl IPFSSettings {
                             </li>
                         </Tabs>
                         { self.render_code() }
+                    </li>
+                    <li>
+                        { "(Optional) Disable AD blocker." }
                     </li>
                 </ol>
                 </Block>
