@@ -2,7 +2,10 @@
 
 use cid::Cid;
 
-use gloo_console::{error, info};
+use gloo_console::error;
+
+#[cfg(debug_assertions)]
+use gloo_console::info;
 
 use linked_data::{
     identity::Identity,

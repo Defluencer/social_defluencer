@@ -1,17 +1,18 @@
 #![cfg(target_arch = "wasm32")]
 
-use linked_data::identity::Identity;
-use yew::prelude::*;
-use yew_router::prelude::*;
-
 use channel::ChannelPage;
+use components::Route;
 use content::ContentPage;
 use feed::FeedPage;
 use home::HomePage;
 use live::LivePage;
 use settings::SettingPage;
 
-use components::Route;
+use linked_data::identity::Identity;
+
+use yew::{platform::spawn_local, prelude::*};
+
+use yew_router::prelude::*;
 
 use utils::{
     defluencer::{ChannelContext, UserContext},
@@ -20,8 +21,7 @@ use utils::{
     web3::{get_wallet_addr, Web3Context},
 };
 
-use wasm_bindgen_futures::spawn_local;
-
+#[cfg(debug_assertions)]
 use gloo_console::info;
 
 pub enum Msg {

@@ -12,7 +12,10 @@ use utils::{
     web3::Web3Context,
 };
 
-use gloo_console::{error, info};
+use gloo_console::error;
+
+#[cfg(debug_assertions)]
+use gloo_console::info;
 
 #[derive(Properties, PartialEq)]
 pub struct Props {

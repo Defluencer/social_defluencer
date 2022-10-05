@@ -13,6 +13,7 @@ use utils::{
     web3::{set_wallet_addr, Web3Context},
 };
 
+#[cfg(debug_assertions)]
 use gloo_console::info;
 
 #[derive(Properties, PartialEq)]

@@ -2,7 +2,10 @@
 
 use web_sys::Performance;
 
-use gloo_console::{error, info};
+use gloo_console::error;
+
+#[cfg(debug_assertions)]
+use gloo_console::info;
 
 /// P value dictate the weigth given to newer value.
 ///

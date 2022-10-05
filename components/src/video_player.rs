@@ -9,7 +9,10 @@ use either::Either;
 
 use futures_util::{future::AbortHandle, stream::Abortable, StreamExt};
 
-use gloo_console::{error, info, warn};
+use gloo_console::{error, warn};
+
+#[cfg(debug_assertions)]
+use gloo_console::info;
 
 use ipfs_api::IpfsService;
 
