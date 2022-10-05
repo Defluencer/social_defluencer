@@ -11,3 +11,7 @@ members = [
     "utils",
     "components"
 ]
+
+[profile.release]
+lto = true
+opt-level = 'z'
