@@ -205,7 +205,7 @@ impl ManageContent {
                         <File name="markdown" files={self.markdowns.clone()} update={self.makdown_cb.clone()} selector_label={"Choose a file..."} selector_icon={html!{<i class="fas fa-upload"></i>}} has_name={Some("markdown.md")} fullwidth=true />
                     </Control>
                 </Field>
-                <Field label="Thumbnail Image" help={"Less than 1MB, 16 by 9 ratio, .PNG or .JPG (optional)"} >
+                <Field label="Thumbnail Image" help={"Less than 1MiB, 16 by 9 ratio, .PNG or .JPG (optional)"} >
                     <Control>
                         <File name="image" files={self.images.clone()} update={self.image_cb.clone()} selector_label={"Choose an image..."} selector_icon={html!{<i class="fas fa-upload"></i>}} has_name={Some("image.jpg")} fullwidth=true />
                     </Control>
@@ -229,7 +229,7 @@ impl ManageContent {
                         <Input name="video_cid" value="" update={self.form_cid_cb.clone()} />
                     </Control>
                 </Field>
-                <Field label="Thumbnail Image" help={"Less than 1MB, 16 by 9 ratio, .PNG or .JPG (optional)"} >
+                <Field label="Thumbnail Image" help={"Less than 1MiB, 16 by 9 ratio, .PNG or .JPG (optional)"} >
                     <Control>
                         <File name="image" files={self.images.clone()} update={self.image_cb.clone()} selector_label={"Choose an image..."} selector_icon={html!{<i class="fas fa-upload"></i>}} has_name={Some("image.jpg")} fullwidth=true />
                     </Control>
@@ -238,7 +238,7 @@ impl ManageContent {
             },
             Modals::Remove => html! {
             <section class="modal-card-body">
-                <Field label="Content CID" help={"Remove the content from YOUR channel."} >
+                <Field label="Content CID" help={"Remove the content from your channel."} >
                     <Control>
                         <Input name="cid" value="" update={self.form_cid_cb.clone()} />
                     </Control>
@@ -250,7 +250,7 @@ impl ManageContent {
 
         html! {
         <div class={if self.modal != Modals::None {"modal is-active"} else {"modal"}} >
-            <div class="modal-background"></div>
+            <div class="modal-background" onclick={self.close_modal_cb.clone()} ></div>
             <div class="modal-card">
                 <header class="modal-card-head">
                     <p class="modal-card-title">
@@ -301,8 +301,8 @@ impl ManageContent {
                 user,
                 channel,
                 self.title.clone(),
-                self.images.pop().unwrap(),
-                self.markdowns.pop().unwrap(),
+                self.images.pop(),
+                self.markdowns.pop(),
                 self.word_count,
                 ctx.link().callback(Msg::Result),
             )),
@@ -311,7 +311,7 @@ impl ManageContent {
                 channel,
                 self.title.clone(),
                 self.form_cid,
-                self.images.pop().unwrap(),
+                self.images.pop(),
                 ctx.link().callback(Msg::Result),
             )),
             Modals::Remove => spawn_local(remove_content(
@@ -447,7 +447,7 @@ async fn create_video_post(
     channel: Channel<LocalUpdater>,
     title: String,
     cid: Cid,
-    image: SysFile,
+    image: Option<SysFile>,
     callback: Callback<Cid>,
 ) {
     let cid = match user.create_video_post(title, cid, image, false).await {
@@ -468,13 +468,21 @@ async fn create_article(
     user: User<EthereumSigner>,
     channel: Channel<LocalUpdater>,
     title: String,
-    image: SysFile,
-    markdown: SysFile,
-    word_count: u64,
+    image: Option<SysFile>,
+    markdown: Option<SysFile>,
+    count: u64,
     callback: Callback<Cid>,
 ) {
+    if markdown.is_none() {
+        return;
+    }
+
+    let markdown = markdown.unwrap();
+
+    let count = if count == 0 { None } else { Some(count) };
+
     let cid = match user
-        .create_blog_post(title, Some(image), markdown, Some(word_count), false)
+        .create_blog_post(title, image, markdown, count, false)
         .await
     {
         Ok((cid, _)) => cid,

@@ -4,7 +4,7 @@ use yew::{classes, function_component, html, Html};
 
 use yew_router::prelude::*;
 
-use ybc::Navbar;
+use ybc::{Image, ImageSize, Level, LevelItem, LevelLeft, Navbar};
 
 use crate::Route;
 
@@ -12,8 +12,18 @@ use crate::Route;
 pub fn navbar() -> Html {
     let navbrand = html! {
         <Link<Route> classes="navbar-item" to={Route::Home}>
-            <img src="../image/defluencer_logo_blur.svg" alt="defluencer-logo" />
-            {"Home"}
+            <Level>
+                <LevelLeft>
+                    <LevelItem>
+                        <Image size={ImageSize::Is32x32} >
+                            <img src="../image/defluencer_logo_blur.svg" alt="defluencer-logo" />
+                        </Image>
+                    </LevelItem>
+                    <LevelItem>
+                        {"Home"}
+                    </LevelItem>
+                </LevelLeft>
+            </Level>
         </Link<Route>>
     };
 

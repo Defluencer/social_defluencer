@@ -368,7 +368,7 @@ dependencies = [
 [[package]]
 name = "dag-jose"
 version = "0.1.0"
-source = "git+https://github.com/Defluencer/rust-defluencer?branch=develop#d277f3915e5a78d0c8ed9f6112203923e1e0a60a"
+source = "git+https://github.com/Defluencer/rust-defluencer?branch=develop#a90dfa68cdd32e3595e9fdf75bb86a616b9ccc73"
 dependencies = [
  "cid",
  "ed25519",
@@ -448,7 +448,7 @@ dependencies = [
 [[package]]
 name = "defluencer"
 version = "0.1.0"
-source = "git+https://github.com/Defluencer/rust-defluencer?branch=develop#d277f3915e5a78d0c8ed9f6112203923e1e0a60a"
+source = "git+https://github.com/Defluencer/rust-defluencer?branch=develop#a90dfa68cdd32e3595e9fdf75bb86a616b9ccc73"
 dependencies = [
  "async-recursion",
  "async-trait",
@@ -1245,7 +1245,7 @@ dependencies = [
 [[package]]
 name = "ipfs-api"
 version = "0.1.0"
-source = "git+https://github.com/Defluencer/rust-defluencer?branch=develop#d277f3915e5a78d0c8ed9f6112203923e1e0a60a"
+source = "git+https://github.com/Defluencer/rust-defluencer?branch=develop#a90dfa68cdd32e3595e9fdf75bb86a616b9ccc73"
 dependencies = [
  "bytes",
  "cid",
@@ -1267,7 +1267,7 @@ checksum = "879d54834c8c76457ef4293a689b2a8c59b076067ad77b15efafbb05f92a592b"
 [[package]]
 name = "ipns-records"
 version = "0.1.0"
-source = "git+https://github.com/Defluencer/rust-defluencer?branch=develop#d277f3915e5a78d0c8ed9f6112203923e1e0a60a"
+source = "git+https://github.com/Defluencer/rust-defluencer?branch=develop#a90dfa68cdd32e3595e9fdf75bb86a616b9ccc73"
 dependencies = [
  "chrono",
  "cid",
@@ -1406,7 +1406,7 @@ checksum = "329c933548736bc49fd575ee68c89e8be4d260064184389a5b77517cddd99ffb"
 [[package]]
 name = "linked-data"
 version = "0.1.0"
-source = "git+https://github.com/Defluencer/rust-defluencer?branch=develop#d277f3915e5a78d0c8ed9f6112203923e1e0a60a"
+source = "git+https://github.com/Defluencer/rust-defluencer?branch=develop#a90dfa68cdd32e3595e9fdf75bb86a616b9ccc73"
 dependencies = [
  "bitvec 1.0.1",
  "cid",

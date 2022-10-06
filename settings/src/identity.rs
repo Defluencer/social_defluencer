@@ -249,7 +249,7 @@ impl IdentitySettings {
     fn render_create_modal(&self) -> Html {
         html! {
         <div class= { if self.modal == Modals::Create { "modal is-active" } else { "modal" } } >
-            <div class="modal-background"></div>
+            <div class="modal-background" onclick={self.close_modal_cb.clone()} ></div>
             <div class="modal-card">
                 <header class="modal-card-head">
                     <p class="modal-card-title">
@@ -264,12 +264,12 @@ impl IdentitySettings {
                             <Input name="name" value="" update={self.name_cb.clone()} />
                         </Control>
                     </Field>
-                    <Field label="Biography">
+                    <Field label="Biography" help={"(optional)"} >
                         <Control>
                             <TextArea name="bio" value="" update={self.bio_cb.clone()} placeholder={"Add a short bio..."} rows={4} fixed_size={true} />
                         </Control>
                     </Field>
-                    <Field label="Avatar" >
+                    <Field label="Avatar" help={"Less than 1MiB, square ratio, .PNG or .JPG (optional)"} >
                         <Control>
                             <File name="avatar" files={self.avatar_files.clone()} update={self.avatar_file_cb.clone()} selector_label={"Choose an image..."} selector_icon={html!{<i class="fas fa-upload"></i>}} has_name={Some("image.jpg")} fullwidth=true />
                         </Control>
@@ -280,7 +280,7 @@ impl IdentitySettings {
                         </Control>
                     </Field>
                     if self.channel {
-                        <Field label="Banner" >
+                        <Field label="Banner" help={"Less than 1MiB, 3 by 1 ratio, .PNG or .JPG (optional)"} >
                             <Control>
                                 <File name="banner" files={self.banner_files.clone()} update={self.banner_file_cb.clone()} selector_label={"Choose an image..."} selector_icon={html!{<i class="fas fa-upload"></i>}} has_name={Some("image.jpg")} fullwidth=true />
                             </Control>
@@ -303,7 +303,7 @@ impl IdentitySettings {
     fn render_import_modal(&self) -> Html {
         html! {
         <div class= { if self.modal == Modals::Import { "modal is-active" } else { "modal" } } >
-            <div class="modal-background"></div>
+            <div class="modal-background" onclick={self.close_modal_cb.clone()} ></div>
             <div class="modal-card">
                 <header class="modal-card-head">
                     <p class="modal-card-title">
@@ -335,7 +335,7 @@ impl IdentitySettings {
     fn render_delete_modal(&self) -> Html {
         html! {
         <div class= { if self.modal == Modals::Delete { "modal is-active" } else { "modal" } } >
-            <div class="modal-background"></div>
+            <div class="modal-background" onclick={self.close_modal_cb.clone()} ></div>
             <div class="modal-card">
                 <header class="modal-card-head">
                     <p class="modal-card-title">
@@ -351,7 +351,7 @@ impl IdentitySettings {
                     <Button onclick={self.confirm_delete_cb.clone()} >
                         { "Delete" }
                     </Button>
-                    <Button onclick={self.close_modal_cb.clone()}>
+                    <Button onclick={self.close_modal_cb.clone()} >
                         { "Cancel" }
                     </Button>
                 </footer>
@@ -583,8 +583,8 @@ impl IdentitySettings {
             ipfs,
             self.name.clone(),
             self.bio.clone(),
-            self.avatar_files.pop().unwrap(),
-            self.banner_files.pop().unwrap(),
+            self.avatar_files.pop(),
+            self.banner_files.pop(),
             self.channel,
             addr,
             ctx.link().callback(Msg::IdentityCreated),
@@ -688,36 +688,59 @@ async fn create_identity(
     ipfs: IpfsService,
     name: String,
     bio: String,
-    avatar_file: SysFile,
-    banner_file: SysFile,
+    avatar_file: Option<SysFile>,
+    banner_file: Option<SysFile>,
     channel: bool,
     eth_addr: Address,
     cb: Callback<(Cid, Identity)>,
 ) {
-    let (avatar, banner) = futures_util::join!(
-        defluencer::utils::add_image(&ipfs, avatar_file),
-        defluencer::utils::add_image(&ipfs, banner_file)
-    );
+    let (avatar, banner) = match (avatar_file, banner_file) {
+        (Some(avatar), Some(banner)) => {
+            let (ava_res, bann_res) = futures_util::join!(
+                defluencer::utils::add_image(&ipfs, avatar),
+                defluencer::utils::add_image(&ipfs, banner)
+            );
 
-    let avatar = match avatar {
-        Ok(cid) => Some(cid.into()),
-        Err(e) => {
-            error!(&format!("{:?}", e));
-            return;
+            let avatar = match ava_res {
+                Ok(cid) => Some(cid.into()),
+                Err(e) => {
+                    error!(&format!("{:?}", e));
+                    None
+                }
+            };
+
+            let banner = match bann_res {
+                Ok(cid) => Some(cid.into()),
+                Err(e) => {
+                    error!(&format!("{:?}", e));
+                    None
+                }
+            };
+
+            (avatar, banner)
         }
+        (None, Some(banner)) => match defluencer::utils::add_image(&ipfs, banner).await {
+            Ok(cid) => (None, Some(cid.into())),
+            Err(e) => {
+                error!(&format!("{:?}", e));
+                (None, None)
+            }
+        },
+        (Some(avatar), None) => match defluencer::utils::add_image(&ipfs, avatar).await {
+            Ok(cid) => (Some(cid.into()), None),
+            Err(e) => {
+                error!(&format!("{:?}", e));
+                (None, None)
+            }
+        },
+        _ => (None, None),
     };
 
-    let banner = match banner {
-        Ok(cid) => Some(cid.into()),
-        Err(e) => {
-            error!(&format!("{:?}", e));
-            return;
-        }
-    };
+    let bio = if bio.is_empty() { None } else { Some(bio) };
 
     let mut identity = Identity {
         name,
-        bio: Some(bio),
+        bio,
         avatar,
         banner,
         eth_addr: Some(display_address(eth_addr)),
