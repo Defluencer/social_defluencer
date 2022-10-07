@@ -122,7 +122,7 @@ pub enum Msg {
     SetupNode(Setup),
     Append((Vec<u8>, Vec<u8>)),
     AppendVideo(Vec<u8>),
-    PubSub((PeerId, Vec<u8>)),
+    PubSub((Cid, Vec<u8>)),
 }
 
 impl Component for VideoPlayer {
@@ -196,7 +196,7 @@ impl Component for VideoPlayer {
             Msg::SetupNode(setup) => self.add_source_buffer(setup),
             Msg::Append((aud, vid)) => self.append_buffers(aud, vid),
             Msg::AppendVideo(result) => self.append_video_buffer(result),
-            Msg::PubSub((peer, data)) => self.on_pubsub_update(ctx, peer, data),
+            Msg::PubSub((cid, data)) => self.on_pubsub_update(ctx, cid, data),
         }
 
         false
@@ -297,7 +297,7 @@ impl VideoPlayer {
 
                         while let Some(result) = stream.next().await {
                             match result {
-                                Ok(msg) => cb.emit((msg.from.into(), msg.data)),
+                                Ok(msg) => cb.emit((msg.from, msg.data)),
                                 Err(e) => error!(&format!("{:#?}", e)),
                             }
                         }
@@ -364,7 +364,7 @@ impl VideoPlayer {
     }
 
     /// Callback when GossipSub receive an update.
-    fn on_pubsub_update(&mut self, ctx: &Context<Self>, from: PeerId, data: Vec<u8>) {
+    fn on_pubsub_update(&mut self, ctx: &Context<Self>, from: Cid, data: Vec<u8>) {
         #[cfg(debug_assertions)]
         info!("PubSub Message Received");
 
@@ -379,7 +379,15 @@ impl VideoPlayer {
         #[cfg(debug_assertions)]
         info!(&format!("Sender => {}", from));
 
-        if from != live.settings.peer_id {
+        let peer_id = match PeerId::try_from(from) {
+            Ok(peer) => peer,
+            Err(e) => {
+                error!(&format!("{:#?}", e));
+                return;
+            }
+        };
+
+        if peer_id != live.settings.peer_id {
             #[cfg(debug_assertions)]
             warn!("Unauthorized Sender");
             return;

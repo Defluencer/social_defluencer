@@ -34,7 +34,7 @@ use cid::Cid;
 #[derive(Properties, PartialEq)]
 pub struct Props {
     /// Channel Address
-    pub addr: Cid,
+    pub addr: IPNSAddress,
 }
 
 //TODO find a way to tell if live, then display video

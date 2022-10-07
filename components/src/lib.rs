@@ -2,6 +2,7 @@
 
 use cid::Cid;
 
+use linked_data::types::IPNSAddress;
 use yew_router::Routable;
 
 mod ema;
@@ -17,7 +18,7 @@ pub mod video_player;
 #[derive(Routable, Clone, PartialEq)]
 pub enum Route {
     #[at("/channel/:addr")]
-    Channel { addr: Cid }, // social.defluencer.eth/#/channel/<IPNS_HERE>
+    Channel { addr: IPNSAddress }, // social.defluencer.eth/#/channel/<IPNS_HERE>
 
     #[at("/content/:cid")]
     Content { cid: Cid }, // social.defluencer.eth/#/content/<CID_HERE>

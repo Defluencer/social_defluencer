@@ -10,6 +10,7 @@ use defluencer::{
 
 use gloo_console::error;
 
+use linked_data::types::IPNSAddress;
 use utils::defluencer::{ChannelContext, UserContext};
 
 use ybc::{Box, Button, Control, Field, File, Input, Level, LevelItem, TextArea};
@@ -21,13 +22,14 @@ use web_sys::File as SysFile;
 #[derive(Properties, PartialEq)]
 pub struct Props {
     /// Channel Address
-    pub addr: Cid,
+    pub addr: IPNSAddress,
 }
 
 pub struct ManageContent {
     video_modal_cb: Callback<MouseEvent>,
     post_modal_cb: Callback<MouseEvent>,
     article_modal_cb: Callback<MouseEvent>,
+    follow_modal_cb: Callback<MouseEvent>,
     modal: Modals,
     close_modal_cb: Callback<MouseEvent>,
 
@@ -45,6 +47,9 @@ pub struct ManageContent {
     form_cid: Cid,
     form_cid_cb: Callback<String>,
 
+    form_ipns: IPNSAddress,
+    form_ipns_cb: Callback<String>,
+
     word_count: u64,
     word_cb: Callback<String>,
 
@@ -59,6 +64,7 @@ pub enum Modals {
     None,
     MicroPost,
     Article,
+    Follow,
     Video,
     Remove,
 }
@@ -71,6 +77,7 @@ pub enum Msg {
     Image(Vec<SysFile>),
     Markdown(Vec<SysFile>),
     FormCid(String),
+    FormIPNS(String),
     WordCount(String),
     Result(Cid),
 }
@@ -83,6 +90,7 @@ impl Component for ManageContent {
         let video_modal_cb = ctx.link().callback(|_| Msg::Modal(Modals::Video));
         let post_modal_cb = ctx.link().callback(|_| Msg::Modal(Modals::MicroPost));
         let article_modal_cb = ctx.link().callback(|_| Msg::Modal(Modals::Article));
+        let follow_modal_cb = ctx.link().callback(|_| Msg::Modal(Modals::Follow));
         let close_modal_cb = ctx.link().callback(|_| Msg::CloseModal);
         let create_cb = ctx.link().callback(|_| Msg::Create);
         let remove_modal_cb = ctx.link().callback(|_| Msg::Modal(Modals::Remove));
@@ -91,12 +99,14 @@ impl Component for ManageContent {
         let img_file_cb = ctx.link().callback(Msg::Image);
         let md_file_cb = ctx.link().callback(Msg::Markdown);
         let form_cid_cb = ctx.link().callback(Msg::FormCid);
+        let form_ipns_cb = ctx.link().callback(Msg::FormIPNS);
         let word_cb = ctx.link().callback(Msg::WordCount);
 
         Self {
             video_modal_cb,
             post_modal_cb,
             article_modal_cb,
+            follow_modal_cb,
             modal: Modals::None,
             close_modal_cb,
 
@@ -111,6 +121,9 @@ impl Component for ManageContent {
 
             form_cid: Cid::default(),
             form_cid_cb,
+
+            form_ipns: IPNSAddress::default(),
+            form_ipns_cb,
 
             word_count: 0,
             word_cb,
@@ -132,7 +145,8 @@ impl Component for ManageContent {
             Msg::Title(title) => self.on_title(title),
             Msg::Image(images) => self.on_images(images),
             Msg::Markdown(markdowns) => self.on_markdowns(markdowns),
-            Msg::FormCid(cid_string) => self.on_form_cid(&cid_string),
+            Msg::FormCid(cid) => self.on_form_cid(&cid),
+            Msg::FormIPNS(addr) => self.on_form_ipns(&addr),
             Msg::WordCount(count) => self.on_word_count(count),
             Msg::Result(_) => self.on_result(),
         }
@@ -168,10 +182,18 @@ impl Component for ManageContent {
                     </Button>
                 </LevelItem>
                 <LevelItem>
+                    <Button onclick={self.follow_modal_cb.clone()} >
+                        <span class="icon-text">
+                            <span class="icon"><i class="fa-solid fa-plus"></i></span>
+                            <span> { "Social Web" } </span>
+                        </span>
+                    </Button>
+                </LevelItem>
+                <LevelItem>
                     <Button onclick={self.remove_modal_cb.clone()} >
                         <span class="icon-text">
                             <span class="icon"><i class="fa-solid fa-minus"></i></span>
-                            <span> { "Remove" } </span>
+                            <span> { "Content" } </span>
                         </span>
                     </Button>
                 </LevelItem>
@@ -232,6 +254,15 @@ impl ManageContent {
                 <Field label="Thumbnail Image" help={"Less than 1MiB, 16 by 9 ratio, .PNG or .JPG (optional)"} >
                     <Control>
                         <File name="image" files={self.images.clone()} update={self.image_cb.clone()} selector_label={"Choose an image..."} selector_icon={html!{<i class="fas fa-upload"></i>}} has_name={Some("image.jpg")} fullwidth=true />
+                    </Control>
+                </Field>
+            </section>
+            },
+            Modals::Follow => html! {
+            <section class="modal-card-body">
+                <Field label="Channel IPNS Address" help={"Only channels can build a social web."} >
+                    <Control>
+                        <Input name="cid" value="" update={self.form_ipns_cb.clone()} />
                     </Control>
                 </Field>
             </section>
@@ -319,6 +350,10 @@ impl ManageContent {
                 self.form_cid,
                 ctx.link().callback(Msg::Result),
             )),
+            Modals::Follow => match IPNSAddress::try_from(self.form_cid) {
+                Ok(addr) => spawn_local(add_followee(channel, addr)),
+                Err(e) => error!(&format!("{:#?}", e)),
+            },
             Modals::None => return false,
         }
 
@@ -361,10 +396,26 @@ impl ManageContent {
             Ok(cid) => cid,
             Err(e) => {
                 error!(&format!("{:#?}", e));
-                return false;
+                self.disabled = true;
+                return true;
             }
         };
 
+        self.disabled = false;
+        true
+    }
+
+    fn on_form_ipns(&mut self, str: &str) -> bool {
+        self.form_ipns = match IPNSAddress::try_from(str) {
+            Ok(cid) => cid,
+            Err(e) => {
+                error!(&format!("{:#?}", e));
+                self.disabled = true;
+                return true;
+            }
+        };
+
+        self.disabled = false;
         true
     }
 
@@ -502,8 +553,14 @@ async fn remove_content(channel: Channel<LocalUpdater>, cid: Cid, callback: Call
     match channel.remove_content(cid).await {
         Ok(option) => match option {
             Some(cid) => callback.emit(cid),
-            None => {}
+            None => error!("Cannot find content to remove!"),
         },
         Err(e) => error!(&format!("{:#?}", e)),
+    }
+}
+
+async fn add_followee(channel: Channel<LocalUpdater>, addr: IPNSAddress) {
+    if let Err(e) = channel.follow(addr).await {
+        error!(&format!("{:#?}", e));
     }
 }

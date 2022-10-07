@@ -52,6 +52,8 @@ pub fn pure_content(props: &ContentProps) -> Html {
     } = props;
     let cid = *cid;
 
+    let is_author = Some(media.identity()) == user_addr;
+
     let mut name = html! {
         <span class="icon-text">
             <span class="icon"><i class="fas fa-user"></i></span>
@@ -59,7 +61,7 @@ pub fn pure_content(props: &ContentProps) -> Html {
         </span>
     };
 
-    if Some(media.identity()) != user_addr {
+    if !is_author {
         if let Some(addr) = identity.ipns_addr {
             name = html! {
                 <Link<Route> to={Route::Channel{ addr: addr.into()}} >
@@ -160,7 +162,7 @@ pub fn pure_content(props: &ContentProps) -> Html {
                             <Thumbnail key={cid.to_string()} {cid} media={media.clone()} identity={identity.clone()} />
                         </CommentButton>
                     </LevelItem>
-                    if Some(media.identity()) != user_addr {
+                    if !is_author {
                     <LevelItem>
                         <ShareButton {cid} >
                             <Thumbnail key={cid.to_string()} {cid} media={media.clone()} identity={identity.clone()} />

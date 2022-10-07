@@ -38,7 +38,13 @@ impl IPFSContext {
         };
 
         let peer_id = match client.peer_id().await {
-            Ok(peer_id) => peer_id.into(),
+            Ok(peer_id) => match PeerId::try_from(peer_id) {
+                Ok(peer) => peer,
+                Err(e) => {
+                    error!(&format!("{:#?}", e));
+                    return None;
+                }
+            },
             Err(e) => {
                 error!(&format!("{:#?}", e));
                 return None;
