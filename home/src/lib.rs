@@ -88,32 +88,39 @@ pub fn home_page() -> Html {
             </Section>
             <Section>
                 <Container>
-                    <Title size={HeaderSize::Is5} >
-                        { "How do I use this app?" }
-                    </Title>
-                    <br />
-                    <Subtitle size={HeaderSize::Is6} >
-                    {
-                        "Users can create their own channels, rely on existing channels or just share content links.
-                        Channels can be own by individuals or organisations and can curate content how they want."
-                    }
-                    </Subtitle>
-                     <br />
-                    <Title size={HeaderSize::Is5} >
-                        { "How does the protocol work?" }
-                    </Title>
-                    <br />
-                    <Subtitle size={HeaderSize::Is6} >
-                        {
-                            "Defluencer is a protocol built on top of the inter-planetary file system (IPFS).
-                            On IPFS, data is content addressed which means your content can be shared but never modified.
-                            As content go viral, it is replicated by anyone who reads, watches or interacts with it in any way, resulting in social media without central servers.
-
-                            Social media content is cryptographically signed. By doing so, each piece of content becomes verifiable.
-
-                            Websites or applications folowing the protocol become interoperable with each other because of these properties."
-                        }
-                    </Subtitle>
+                    <Content>
+                        <p>
+                            <Title size={HeaderSize::Is5} >
+                                { "How does the protocol work?" }
+                            </Title>
+                            {
+                                "Defluencer is a protocol built on top of the inter-planetary file system (IPFS).
+                                On IPFS, data is content addressed which means your content can be shared but never modified.
+                                As content go viral, it is replicated by anyone who reads, watches or interacts with it in any way, resulting in social media without central servers."
+                            }
+                        </p>
+                        <p>
+                            {"Social media content is cryptographically signed. By doing so, each piece of content becomes verifiable."}
+                        </p>
+                        <p>
+                            {"Websites or applications folowing the protocol become interoperable with each other because of these properties."}
+                        </p>
+                        <p>
+                            <Title size={HeaderSize::Is5} >
+                                { "What can be built on top of the protocol?" }
+                            </Title>
+                            {"There are many things, here's some ideas."}
+                            <ul>
+                                <li>{"Personal blogs."}</li>
+                                <li>{"Community forums."}</li>
+                                <li>{"Topical content aggregators."}</li>
+                                <li>{"Blockchain content timestamping services."}</li>
+                                <li>{"Defluencer specific IPFS gateways."}</li>
+                                <li>{"Content Moderation and filtering services."}</li>
+                                <li>{"Pinning and Archiving services."}</li>
+                            </ul>
+                        </p>
+                    </Content>
                 </Container>
             </Section>
             <Footer>
