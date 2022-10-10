@@ -253,6 +253,7 @@ impl ChannelPage {
                         </MediaContent>
                         <MediaRight>
                             <DagExplorer key={meta.identity.link.to_string()} cid={meta.identity.link} />
+                            //TODO modal button for social web
                         </MediaRight>
                     </ybc::Media>
                     if self.own_channel

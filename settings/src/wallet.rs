@@ -2,9 +2,9 @@
 
 use linked_data::types::Address;
 
-use ybc::{Button, Container, Section, Subtitle};
+use ybc::{Block, Button, Container, Control, Field, Input, Section, Subtitle};
 
-use yew::{context::ContextHandle, platform::spawn_local, prelude::*};
+use yew::{platform::spawn_local, prelude::*};
 
 use utils::{
     defluencer::{ChannelContext, UserContext},
@@ -28,7 +28,6 @@ pub struct Props {
 
 pub struct WalletSettings {
     address: Option<Address>,
-    _context_handle: Option<ContextHandle<Web3Context>>,
 
     wallet_cb: Callback<MouseEvent>,
 }
@@ -46,19 +45,14 @@ impl Component for WalletSettings {
         #[cfg(debug_assertions)]
         info!("Wallet Setting Create");
 
-        let (address, _context_handle) = match ctx.link().context::<Web3Context>(Callback::noop()) {
-            Some((context, handle)) => (Some(context.addr), Some(handle)),
-            None => (None, None),
+        let address = match ctx.link().context::<Web3Context>(Callback::noop()) {
+            Some((context, _)) => Some(context.addr),
+            None => None,
         };
 
         let wallet_cb = ctx.link().callback(|_e: MouseEvent| Msg::ConnectWallet);
 
-        Self {
-            address,
-            _context_handle,
-
-            wallet_cb,
-        }
+        Self { address, wallet_cb }
     }
 
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
@@ -91,9 +85,12 @@ impl Component for WalletSettings {
         html! {
         <Section>
             <Container>
-                <Subtitle >
+                <Subtitle>
                     {"Crypto Wallet"}
                 </Subtitle>
+                <Block>
+                {"Metamask is required for now as there's no way to sign content with IPNS key or sign IPNS records with Metamask. I'm working on a better system, stay tuned!"}
+                </Block>
                 {
                     match self.address {
                         Some(addr) => self.render_connected(addr),
@@ -109,13 +106,13 @@ impl Component for WalletSettings {
 impl WalletSettings {
     fn render_connected(&self, addr: Address) -> Html {
         html! {
-            <div class="field">
-                <label class="label"> { "Wallet Address" } </label>
-                <div class="control is-expanded">
-                    <input name="wallet_addrs" value={display_address(addr)} class="input is-static" type="text" readonly=true />
-                </div>
-                <p class="help"> { "Wallet address used by this App." } </p>
-            </div>
+        <Block>
+            <Field label="Wallet Address" help={"Wallet address used by this App."}>
+                <Control expanded=true >
+                    <Input name="wallet_addrs" value={display_address(addr)} update={Callback::noop()} r#static=true readonly=true />
+                </Control>
+            </Field>
+        </Block>
         }
     }
 
