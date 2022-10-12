@@ -13,7 +13,7 @@ use gloo_console::error;
 use linked_data::types::IPNSAddress;
 use utils::defluencer::{ChannelContext, UserContext};
 
-use ybc::{Box, Button, Control, Field, File, Input, Level, LevelItem, TextArea};
+use ybc::{Button, Buttons, Control, Field, File, Input, TextArea};
 
 use yew::{platform::spawn_local, prelude::*};
 
@@ -154,51 +154,41 @@ impl Component for ManageContent {
 
     fn view(&self, _ctx: &Context<Self>) -> Html {
         html! {
-        <Box>
-            { self.render_modal() }
-            <Level>
-                <LevelItem>
-                    <Button onclick={self.video_modal_cb.clone()} >
-                        <span class="icon-text">
-                            <span class="icon"><i class="fa-solid fa-plus"></i></span>
-                            <span> { "Video" } </span>
-                        </span>
-                    </Button>
-                </LevelItem>
-                <LevelItem>
-                    <Button onclick={self.post_modal_cb.clone()} >
-                        <span class="icon-text">
-                            <span class="icon"><i class="fa-solid fa-plus"></i></span>
-                            <span> { "Micro Post" } </span>
-                        </span>
-                    </Button>
-                </LevelItem>
-                <LevelItem>
-                    <Button onclick={self.article_modal_cb.clone()} >
-                        <span class="icon-text">
-                            <span class="icon"><i class="fa-solid fa-plus"></i></span>
-                            <span> { "Article" } </span>
-                        </span>
-                    </Button>
-                </LevelItem>
-                <LevelItem>
-                    <Button onclick={self.follow_modal_cb.clone()} >
-                        <span class="icon-text">
-                            <span class="icon"><i class="fa-solid fa-plus"></i></span>
-                            <span> { "Social Web" } </span>
-                        </span>
-                    </Button>
-                </LevelItem>
-                <LevelItem>
-                    <Button onclick={self.remove_modal_cb.clone()} >
-                        <span class="icon-text">
-                            <span class="icon"><i class="fa-solid fa-minus"></i></span>
-                            <span> { "Content" } </span>
-                        </span>
-                    </Button>
-                </LevelItem>
-            </Level>
-        </Box>
+        <>
+        { self.render_modal() }
+        <Buttons classes={classes!("are-normal", "is-centered", "has-addons")}>
+            <Button  onclick={self.article_modal_cb.clone()} >
+                <span class="icon-text">
+                    <span class="icon"><i class="fa-solid fa-plus"></i></span>
+                    <span> { "Article" } </span>
+                </span>
+            </Button>
+            <Button  onclick={self.video_modal_cb.clone()} >
+                <span class="icon-text">
+                    <span class="icon"><i class="fa-solid fa-plus"></i></span>
+                    <span> { "Video" } </span>
+                </span>
+            </Button>
+            <Button  onclick={self.post_modal_cb.clone()} >
+                <span class="icon-text">
+                    <span class="icon"><i class="fa-solid fa-plus"></i></span>
+                    <span> { "Comment" } </span>
+                </span>
+            </Button>
+            <Button  onclick={self.follow_modal_cb.clone()} >
+                <span class="icon-text">
+                    <span class="icon"><i class="fa-solid fa-plus"></i></span>
+                    <span> { "Social Web" } </span>
+                </span>
+            </Button>
+            <Button  onclick={self.remove_modal_cb.clone()} >
+                <span class="icon-text">
+                    <span class="icon"><i class="fa-solid fa-minus"></i></span>
+                    <span> { "Content" } </span>
+                </span>
+            </Button>
+        </Buttons>
+        </>
         }
     }
 }
@@ -350,10 +340,11 @@ impl ManageContent {
                 self.form_cid,
                 ctx.link().callback(Msg::Result),
             )),
-            Modals::Follow => match IPNSAddress::try_from(self.form_cid) {
-                Ok(addr) => spawn_local(add_followee(channel, addr)),
-                Err(e) => error!(&format!("{:#?}", e)),
-            },
+            Modals::Follow => spawn_local(add_followee(
+                channel,
+                self.form_ipns.clone(),
+                ctx.link().callback(Msg::Result),
+            )),
             Modals::None => return false,
         }
 
@@ -559,8 +550,9 @@ async fn remove_content(channel: Channel<LocalUpdater>, cid: Cid, callback: Call
     }
 }
 
-async fn add_followee(channel: Channel<LocalUpdater>, addr: IPNSAddress) {
-    if let Err(e) = channel.follow(addr).await {
-        error!(&format!("{:#?}", e));
+async fn add_followee(channel: Channel<LocalUpdater>, addr: IPNSAddress, callback: Callback<Cid>) {
+    match channel.follow(addr).await {
+        Ok(cid) => callback.emit(cid),
+        Err(e) => error!(&format!("{:#?}", e)),
     }
 }

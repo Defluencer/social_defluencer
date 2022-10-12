@@ -64,7 +64,7 @@ pub fn pure_content(props: &ContentProps) -> Html {
     if !is_author {
         if let Some(addr) = identity.ipns_addr {
             name = html! {
-                <Link<Route> to={Route::Channel{ addr: addr.into()}} >
+                <Link<Route> to={Route::Channel{ addr }} >
                     {name}
                 </Link<Route>>
             };

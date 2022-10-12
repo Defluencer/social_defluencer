@@ -79,22 +79,22 @@ impl Component for App {
 
         match msg {
             Msg::Context((ipfs, web3, user, channel)) => {
-                if self.ipfs_context.is_none() && ipfs.is_some() {
+                if ipfs.is_some() {
                     self.ipfs_context = ipfs;
                     update = true;
                 }
 
-                if self.web3_context.is_none() && web3.is_some() {
+                if web3.is_some() {
                     self.web3_context = web3;
                     update = true;
                 }
 
-                if self.user_context.is_none() && user.is_some() {
+                if user.is_some() {
                     self.user_context = user;
                     update = true;
                 }
 
-                if self.channel_context.is_none() && channel.is_some() {
+                if channel.is_some() {
                     self.channel_context = channel;
                     update = true;
                 }

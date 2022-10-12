@@ -2,13 +2,17 @@
 
 mod manage_content;
 
+use defluencer::Defluencer;
+
+use ipfs_api::IpfsService;
+
 use manage_content::ManageContent;
 
 use linked_data::{identity::Identity, types::IPNSAddress};
 
 use std::collections::{HashMap, HashSet, VecDeque};
 
-use components::pure::{DagExplorer, IPFSImage, NavigationBar, Searching, Thumbnail};
+use components::pure::{DagExplorer, Followee, IPFSImage, NavigationBar, Searching, Thumbnail};
 
 use futures_util::stream::AbortHandle;
 
@@ -23,8 +27,8 @@ use utils::{
 };
 
 use ybc::{
-    Block, Box, Button, Container, Content, ImageSize, LevelItem, LevelLeft, MediaContent,
-    MediaLeft, MediaRight, Section,
+    Alignment, Block, Box, Button, Container, Content, ImageSize, Level, LevelItem, LevelLeft,
+    LevelRight, MediaContent, MediaLeft, MediaRight, Section, Size, Tabs,
 };
 
 use yew::{platform::spawn_local, prelude::*};
@@ -43,10 +47,13 @@ pub struct Props {
 ///
 /// A specific channel page
 pub struct ChannelPage {
+    addr: IPNSAddress,
+
     sub_handle: AbortHandle,
     stream_handle: Option<AbortHandle>,
 
     metadata: Option<ChannelMetadata>,
+    update_cb: Callback<(IPNSAddress, Cid, ChannelMetadata)>,
 
     content: VecDeque<(Cid, Media)>,
     content_cb: Callback<(Cid, Media)>,
@@ -58,6 +65,20 @@ pub struct ChannelPage {
 
     follow_cb: Callback<MouseEvent>,
     following: bool,
+
+    filter: Filter,
+
+    followees: HashMap<Cid, Identity>,
+    followees_cb: Callback<HashMap<Cid, Identity>>,
+}
+
+#[derive(PartialEq, Debug)]
+pub enum Filter {
+    None,
+    Articles,
+    Videos,
+    Comments,
+    Followees,
 }
 
 pub enum Msg {
@@ -65,6 +86,8 @@ pub enum Msg {
     Content((Cid, Media)),
     Identity((Cid, Identity)),
     Follow,
+    Filter(Filter),
+    Followees(HashMap<Cid, Identity>),
 }
 
 impl Component for ChannelPage {
@@ -75,32 +98,35 @@ impl Component for ChannelPage {
         #[cfg(debug_assertions)]
         info!("Channel Page Create");
 
+        let update_cb = ctx.link().callback(Msg::Update);
+        let content_cb = ctx.link().callback(Msg::Content);
+        let identity_cb = ctx.link().callback(Msg::Identity);
+        let follow_cb = ctx.link().callback(|_| Msg::Follow);
+        let followees_cb = ctx.link().callback(Msg::Followees);
+
+        let addr = ctx.props().addr;
+
         let (context, _) = ctx
             .link()
             .context::<IPFSContext>(Callback::noop())
             .expect("IPFS Context");
 
-        let update_cb = ctx.link().callback(Msg::Update);
-
         spawn_local(utils::r#async::get_channels(
             context.client.clone(),
             update_cb.clone(),
-            HashSet::from([ctx.props().addr.into()]),
+            HashSet::from([addr]),
         ));
 
         let (sub_handle, regis) = AbortHandle::new_pair();
 
         spawn_local(utils::r#async::channel_subscribe(
             context.client.clone(),
-            update_cb,
-            ctx.props().addr.into(),
+            update_cb.clone(),
+            addr,
             regis,
         ));
 
-        let content_cb = ctx.link().callback(Msg::Content);
-        let identity_cb = ctx.link().callback(Msg::Identity);
-
-        let mut channel = false;
+        let mut own_channel = false;
 
         if ctx
             .link()
@@ -108,25 +134,26 @@ impl Component for ChannelPage {
             .is_some()
         {
             if let Some((context, _)) = ctx.link().context::<ChannelContext>(Callback::noop()) {
-                if context.channel.get_address() == ctx.props().addr.into() {
-                    channel = true;
+                if context.channel.get_address() == addr {
+                    own_channel = true;
                 }
             }
         }
 
-        let follow_cb = ctx.link().callback(|_| Msg::Follow);
-
         let following = {
             let list = utils::follows::get_follow_list();
 
-            list.contains(&ctx.props().addr.into())
+            list.contains(&addr)
         };
 
         Self {
+            addr,
+
             sub_handle,
             stream_handle: None,
 
             metadata: None,
+            update_cb,
 
             content: Default::default(),
             content_cb,
@@ -134,10 +161,15 @@ impl Component for ChannelPage {
             identities: Default::default(),
             identity_cb,
 
-            own_channel: channel,
+            own_channel,
 
             follow_cb,
             following,
+
+            filter: Filter::None,
+
+            followees: Default::default(),
+            followees_cb,
         }
     }
 
@@ -150,7 +182,63 @@ impl Component for ChannelPage {
             Msg::Content((cid, media)) => self.on_content_discovered(ctx, cid, media),
             Msg::Identity((cid, identity)) => self.identities.insert(cid, identity).is_none(),
             Msg::Follow => self.on_follow(ctx),
+            Msg::Filter(filter) => self.on_filtering(filter),
+            Msg::Followees(followees) => self.on_followees(followees),
         }
+    }
+
+    fn changed(&mut self, ctx: &Context<Self>) -> bool {
+        #[cfg(debug_assertions)]
+        info!("Channel Page Changed");
+
+        if self.addr != ctx.props().addr {
+            self.addr = ctx.props().addr;
+            self.metadata.take();
+            self.content.clear();
+            self.sub_handle.abort();
+            self.own_channel = false;
+            self.filter = Filter::None;
+            self.followees.clear();
+
+            if let Some(handle) = self.stream_handle.take() {
+                handle.abort();
+            }
+
+            let (context, _) = ctx
+                .link()
+                .context::<IPFSContext>(Callback::noop())
+                .expect("IPFS Context");
+            let ipfs = context.client;
+
+            spawn_local(utils::r#async::get_channels(
+                ipfs.clone(),
+                self.update_cb.clone(),
+                HashSet::from([self.addr]),
+            ));
+
+            let (sub_handle, regis) = AbortHandle::new_pair();
+            self.sub_handle = sub_handle;
+
+            spawn_local(utils::r#async::channel_subscribe(
+                ipfs.clone(),
+                self.update_cb.clone(),
+                self.addr,
+                regis,
+            ));
+
+            
+            if let Some((context, _)) = ctx.link().context::<ChannelContext>(Callback::noop()) {
+                if context.channel.get_address() == self.addr {
+                    self.own_channel = true;
+                }
+            }
+
+            self.following = utils::follows::get_follow_list().contains(&self.addr);
+
+            return true;
+        }
+
+        false
     }
 
     fn view(&self, ctx: &Context<Self>) -> Html {
@@ -176,99 +264,181 @@ impl Component for ChannelPage {
 }
 
 impl ChannelPage {
-    fn render_channel(&self, ctx: &Context<ChannelPage>, meta: &ChannelMetadata) -> Html {
-        let content = if !self.content.is_empty() {
-            self.content
-                .iter()
-                .filter_map(|(cid, media)| {
-                    let cid = *cid;
-                    let media = media.clone();
-
-                    let identity = match self.identities.get(&media.identity().link) {
-                        Some(id) => id.clone(),
-                        None => return None,
-                    };
-
-                    return Some(html! {
-                    <Box>
-                        <Thumbnail key={cid.to_string()} {cid} {media} {identity} />
-                    </Box>
-                    });
-                })
-                .collect::<Html>()
-        } else {
-            html!(<Searching />)
-        };
-
+    fn render_channel(&self, ctx: &Context<Self>, meta: &ChannelMetadata) -> Html {
         html! {
         <>
-            <NavigationBar />
-                <Container>
-                if let Some(identity) = self.identities.get(&meta.identity.link) {
-                    if let Some(banner) = identity.banner {
-                        <Block>
-                            <IPFSImage cid={banner.link} size={ImageSize::Is3by1} rounded=false />
-                        </Block>
-                    }
-                    <ybc::Media>
-                        <MediaLeft>
-                            <Block>
-                            if let Some(avatar) = identity.avatar {
-                                <IPFSImage cid={avatar.link} size={ImageSize::Is64x64} rounded=true />
-                            }
-                            </Block>
-                        </MediaLeft>
-                        <MediaContent>
-                            <LevelLeft>
-                                <LevelItem>
-                                    <span class="icon-text">
-                                        <span class="icon"><i class="fas fa-user"></i></span>
-                                        <span><strong>{&identity.name}</strong></span>
-                                    </span>
-                                </LevelItem>
-                                <LevelItem>
-                                    <Button classes={classes!("is-small", "is-rounded")} onclick={self.follow_cb.clone()} >
-                                    {
-                                        if self.following {"Unfollow"} else {"Follow"}
-                                    }
-                                    </Button>
-                                </LevelItem>
-                            </LevelLeft>
-                        if let Some(eth_addr) = &identity.eth_addr {
-                            <span class="icon-text">
-                                <span class="icon"><i class="fa-brands fa-ethereum"></i></span>
-                                <span><small>{eth_addr}</small></span>
-                            </span>
-                        }
-                        <br/>
-                        if let Some(btc_addr) = &identity.btc_addr {
-                            <span class="icon-text">
-                                <span class="icon"><i class="fa-brands fa-btc"></i></span>
-                                <span><small>{btc_addr}</small></span>
-                            </span>
-                        }
-                        if let Some(bio) = &identity.bio {
-                            <Content>{ bio }</Content>
-                        }
-                        </MediaContent>
-                        <MediaRight>
-                            <DagExplorer key={meta.identity.link.to_string()} cid={meta.identity.link} />
-                            //TODO modal button for social web
-                        </MediaRight>
-                    </ybc::Media>
-                    if self.own_channel
-                    {
-                        <ManageContent addr={ctx.props().addr} />
-                    }
+        <NavigationBar />
+        <Container>
+        if let Some(identity) = self.identities.get(&meta.identity.link) {
+            if let Some(banner) = identity.banner {
+                <Block>
+                    <IPFSImage cid={banner.link} size={ImageSize::Is3by1} rounded=false />
+                </Block>
+            }
+            <Block>
+            <ybc::Media>
+                <MediaLeft>
+                if let Some(avatar) = identity.avatar {
+                    <IPFSImage cid={avatar.link} size={ImageSize::Is64x64} rounded=true />
                 }
-                </Container>
-            <Section>
-                <Container>
-                    { content }
-                </Container>
-            </Section>
+                </MediaLeft>
+                <MediaContent>
+                    <Level>
+                    <LevelLeft>
+                        <LevelItem>
+                            <span class="icon-text">
+                                <span class="icon"><i class="fas fa-user"></i></span>
+                                <span><strong>{&identity.name}</strong></span>
+                            </span>
+                        </LevelItem>
+                        <LevelItem>
+                            <Button classes={classes!("is-small", "is-rounded")} onclick={self.follow_cb.clone()} >
+                            {
+                                if self.following {"Unfollow"} else {"Follow"}
+                            }
+                            </Button>
+                        </LevelItem>
+                    </LevelLeft>
+                    <LevelRight>
+                    if let Some(addr) = identity.ipns_addr {
+                        <LevelItem>
+                            <span class="icon-text">
+                                <span class="icon"><i class="fa-solid fa-fingerprint"></i></span>
+                                <span><small>{addr.to_string()}</small></span>
+                            </span>
+                        </LevelItem>
+                    }
+                    </LevelRight>
+                    </Level>
+                if let Some(eth_addr) = &identity.eth_addr {
+                    <span class="icon-text">
+                        <span class="icon"><i class="fa-brands fa-ethereum"></i></span>
+                        <span><small>{eth_addr}</small></span>
+                    </span>
+                }
+                <br/>
+                if let Some(btc_addr) = &identity.btc_addr {
+                    <span class="icon-text">
+                        <span class="icon"><i class="fa-brands fa-btc"></i></span>
+                        <span><small>{btc_addr}</small></span>
+                    </span>
+                }
+                <br/>
+                if let Some(bio) = &identity.bio {
+                    <Content>{ bio }</Content>
+                }
+                </MediaContent>
+                <MediaRight>
+                    <DagExplorer key={meta.identity.link.to_string()} cid={meta.identity.link} />
+                </MediaRight>
+            </ybc::Media>
+            </Block>
+            if self.own_channel
+            {
+                <ManageContent addr={ctx.props().addr} />
+            }
+        }
+            <Tabs alignment={Alignment::Centered} size={Size::Normal} boxed=true toggle=true >
+                <li class={ if self.filter == Filter::Articles {"is-active"} else {""} } >
+                    <Button onclick={ctx.link().callback(|_| Msg::Filter(Filter::Articles))} >
+                        <span class="icon-text">
+                            <span class="icon"><i class="fa-solid fa-newspaper"></i></span>
+                            <span>{"Articles"}</span>
+                        </span>
+                    </Button>
+                </li>
+                <li class={ if self.filter == Filter::Videos {"is-active"} else {""} } >
+                    <Button onclick={ctx.link().callback(|_| Msg::Filter(Filter::Videos))} >
+                        <span class="icon-text">
+                            <span class="icon"><i class="fas fa-video"></i></span>
+                            <span>{"Videos"}</span>
+                        </span>
+                    </Button>
+                </li>
+                <li class={ if self.filter == Filter::Comments {"is-active"} else {""} } >
+                    <Button onclick={ctx.link().callback(|_| Msg::Filter(Filter::Comments))} >
+                        <span class="icon-text">
+                            <span class="icon"><i class="fa-solid fa-comment"></i></span>
+                            <span>{"Comments"}</span>
+                        </span>
+                    </Button>
+                </li>
+                <li class={ if self.filter == Filter::Followees {"is-active"} else {""} } >
+                    <Button onclick={ctx.link().callback(|_| Msg::Filter(Filter::Followees))} >
+                        <span class="icon-text">
+                            <span class="icon"><i class="fas fa-user"></i></span>
+                            <span>{"Followees"}</span>
+                        </span>
+                    </Button>
+                </li>
+                <li class={ if self.filter == Filter::None {"is-active"} else {""} } >
+                    <Button onclick={ctx.link().callback(|_| Msg::Filter(Filter::None))} >
+                        {"No Filter"}
+                    </Button>
+                </li>
+            </Tabs>
+            { self.render_content() }
+        </Container>
         </>
         }
+    }
+
+    fn render_content(&self) -> Html {
+        if self.filter == Filter::Followees {
+            return self
+                .followees
+                .iter()
+                .map(|(cid, identity)| {
+                    let cid = *cid;
+                    let identity = identity.clone();
+
+                    html!(<Followee {cid} {identity} />)
+                })
+                .collect::<Html>();
+        }
+
+        if self.content.is_empty() {
+            return html! {<Searching />};
+        }
+
+        self.content
+            .iter()
+            .filter_map(|(cid, media)| {
+                if self.filter != Filter::None {
+                    match media {
+                        Media::Blog(_) => {
+                            if self.filter != Filter::Articles {
+                                return None;
+                            }
+                        }
+                        Media::Video(_) => {
+                            if self.filter != Filter::Videos {
+                                return None;
+                            }
+                        }
+                        Media::Comment(_) => {
+                            if self.filter != Filter::Comments {
+                                return None;
+                            }
+                        }
+                    }
+                }
+
+                let cid = *cid;
+                let media = media.clone();
+
+                let identity = match self.identities.get(&media.identity().link) {
+                    Some(id) => id.clone(),
+                    None => return None,
+                };
+
+                return Some(html! {
+                <Box>
+                    <Thumbnail key={cid.to_string()} {cid} {media} {identity} />
+                </Box>
+                });
+            })
+            .collect::<Html>()
     }
 
     fn render_no_channel(&self) -> Html {
@@ -295,29 +465,37 @@ impl ChannelPage {
             .expect("IPFS Context");
         let ipfs = context.client;
 
-        if let Some(index) = metadata.content_index {
+        if metadata.follows.is_some() {
+            spawn_local(get_followees(
+                ipfs.clone(),
+                metadata.clone(),
+                self.followees_cb.clone(),
+            ));
+        }
+
+        if !self.identities.contains_key(&metadata.identity.link) {
+            spawn_local(utils::r#async::dag_get(
+                ipfs.clone(),
+                metadata.identity.link,
+                self.identity_cb.clone(),
+            ));
+        }
+
+        if let Some(idx) = metadata.content_index {
             self.content.clear();
 
             let (handle, regis) = AbortHandle::new_pair();
 
             spawn_local(utils::r#async::stream_content(
-                ipfs.clone(),
+                ipfs,
                 self.content_cb.clone(),
-                index,
+                idx,
                 regis,
             ));
 
             if let Some(handle) = self.stream_handle.replace(handle) {
                 handle.abort();
             }
-        }
-
-        if !self.identities.contains_key(&metadata.identity.link) {
-            spawn_local(utils::r#async::get_identity(
-                ipfs,
-                metadata.identity.link,
-                self.identity_cb.clone(),
-            ));
         }
 
         self.metadata = Some(metadata);
@@ -332,7 +510,7 @@ impl ChannelPage {
                 .context::<IPFSContext>(Callback::noop())
                 .expect("IPFS Context");
 
-            spawn_local(utils::r#async::get_identity(
+            spawn_local(utils::r#async::dag_get(
                 context.client,
                 media.identity().link,
                 self.identity_cb.clone(),
@@ -359,4 +537,36 @@ impl ChannelPage {
 
         true
     }
+
+    fn on_filtering(&mut self, filter: Filter) -> bool {
+        if self.filter != filter {
+            self.filter = filter;
+            return true;
+        }
+
+        false
+    }
+
+    fn on_followees(&mut self, followees: HashMap<Cid, Identity>) -> bool {
+        if self.followees != followees {
+            self.followees = followees;
+            return true;
+        }
+
+        false
+    }
+}
+
+async fn get_followees(
+    ipfs: IpfsService,
+    metadata: ChannelMetadata,
+    callback: Callback<HashMap<Cid, Identity>>,
+) {
+    let defluencer = Defluencer::new(ipfs);
+
+    let hash_map = defluencer
+        .followees_identity(std::iter::once(&metadata))
+        .await;
+
+    callback.emit(hash_map);
 }

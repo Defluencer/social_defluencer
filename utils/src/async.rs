@@ -10,11 +10,11 @@ use ipfs_api::IpfsService;
 
 use linked_data::{
     channel::ChannelMetadata,
-    identity::Identity,
     media::Media,
     types::{IPLDLink, IPNSAddress},
 };
 
+use serde::de::DeserializeOwned;
 use yew::Callback;
 
 use defluencer::Defluencer;
@@ -139,8 +139,11 @@ pub async fn stream_content(
     }
 }
 
-pub async fn get_identity(ipfs: IpfsService, cid: Cid, callback: Callback<(Cid, Identity)>) {
-    match ipfs.dag_get::<&str, Identity>(cid, None).await {
+pub async fn dag_get<T>(ipfs: IpfsService, cid: Cid, callback: Callback<(Cid, T)>)
+where
+    T: ?Sized + DeserializeOwned,
+{
+    match ipfs.dag_get::<&str, T>(cid, None).await {
         Ok(dag) => callback.emit((cid, dag)),
         Err(e) => error!(&format!("{:#?}", e)),
     }

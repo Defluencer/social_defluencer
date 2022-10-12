@@ -616,7 +616,7 @@ impl IdentitySettings {
             return true;
         }
 
-        spawn_local(utils::r#async::get_identity(
+        spawn_local(utils::r#async::dag_get(
             ipfs,
             cid,
             ctx.link().callback(Msg::IdentityCreated),

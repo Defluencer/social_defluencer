@@ -201,7 +201,7 @@ impl FeedPage {
             }
 
             if !self.identities.contains_key(&metadata.identity.link) {
-                spawn_local(utils::r#async::get_identity(
+                spawn_local(utils::r#async::dag_get(
                     ipfs,
                     metadata.identity.link,
                     self.identity_cb.clone(),
@@ -225,7 +225,7 @@ impl FeedPage {
                 .context::<IPFSContext>(Callback::noop())
                 .expect("IPFS Context");
 
-            spawn_local(utils::r#async::get_identity(
+            spawn_local(utils::r#async::dag_get(
                 context.client,
                 media.identity().link,
                 self.identity_cb.clone(),

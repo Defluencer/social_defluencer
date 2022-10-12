@@ -60,7 +60,7 @@ impl Component for ChatInputs {
                     .context::<IPFSContext>(Callback::noop())
                     .expect("IPFS Context");
 
-                spawn_local(utils::r#async::get_identity(
+                spawn_local(utils::r#async::dag_get(
                     context.client,
                     ipld.link,
                     ctx.link().callback(Msg::Identity),

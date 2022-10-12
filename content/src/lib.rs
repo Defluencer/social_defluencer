@@ -154,7 +154,7 @@ impl Component for ContentPage {
             }
             Msg::Media((media, addr)) => {
                 if !self.identities.contains_key(&media.identity().link) {
-                    spawn_local(utils::r#async::get_identity(
+                    spawn_local(utils::r#async::dag_get(
                         ipfs,
                         media.identity().link,
                         self.identity_cb.clone(),
@@ -182,7 +182,7 @@ impl Component for ContentPage {
                 }
 
                 if !self.identities.contains_key(&comment.identity.link) {
-                    spawn_local(utils::r#async::get_identity(
+                    spawn_local(utils::r#async::dag_get(
                         ipfs,
                         comment.identity.link,
                         self.identity_cb.clone(),
@@ -275,7 +275,7 @@ async fn get_content(ipfs: IpfsService, callback: Callback<(Media, String)>, cid
     };
 
     if !signed_link.verify() {
-        error!("Content Verification Failed!");
+        error!("Content Signature Verification Failed!");
         return;
     }
 

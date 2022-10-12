@@ -89,7 +89,7 @@ impl Component for WalletSettings {
                     {"Crypto Wallet"}
                 </Subtitle>
                 <Block>
-                {"Metamask is required for now as there's no way to sign content with IPNS key or sign IPNS records with Metamask. I'm working on a better system, stay tuned!"}
+                <small>{"Metamask is required for now as there's no way to sign content with IPNS key or sign IPNS records with Metamask. I'm working on a better system, stay tuned!"}</small>
                 </Block>
                 {
                     match self.address {
