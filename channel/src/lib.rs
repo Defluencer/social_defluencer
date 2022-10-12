@@ -27,7 +27,7 @@ use utils::{
 };
 
 use ybc::{
-    Alignment, Block, Box, Button, Container, Content, ImageSize, Level, LevelItem, LevelLeft,
+    Alignment, Block, Button, Container, Content, ImageSize, Level, LevelItem, LevelLeft,
     LevelRight, MediaContent, MediaLeft, MediaRight, Section, Size, Tabs,
 };
 
@@ -226,7 +226,6 @@ impl Component for ChannelPage {
                 regis,
             ));
 
-            
             if let Some((context, _)) = ctx.link().context::<ChannelContext>(Callback::noop()) {
                 if context.channel.get_address() == self.addr {
                     self.own_channel = true;
@@ -276,107 +275,109 @@ impl ChannelPage {
                 </Block>
             }
             <Block>
-            <ybc::Media>
-                <MediaLeft>
-                if let Some(avatar) = identity.avatar {
-                    <IPFSImage cid={avatar.link} size={ImageSize::Is64x64} rounded=true />
-                }
-                </MediaLeft>
-                <MediaContent>
-                    <Level>
-                    <LevelLeft>
-                        <LevelItem>
-                            <span class="icon-text">
-                                <span class="icon"><i class="fas fa-user"></i></span>
-                                <span><strong>{&identity.name}</strong></span>
-                            </span>
-                        </LevelItem>
-                        <LevelItem>
-                            <Button classes={classes!("is-small", "is-rounded")} onclick={self.follow_cb.clone()} >
-                            {
-                                if self.following {"Unfollow"} else {"Follow"}
-                            }
-                            </Button>
-                        </LevelItem>
-                    </LevelLeft>
-                    <LevelRight>
-                    if let Some(addr) = identity.ipns_addr {
-                        <LevelItem>
-                            <span class="icon-text">
-                                <span class="icon"><i class="fa-solid fa-fingerprint"></i></span>
-                                <span><small>{addr.to_string()}</small></span>
-                            </span>
-                        </LevelItem>
+                <ybc::Media>
+                    <MediaLeft>
+                    if let Some(avatar) = identity.avatar {
+                        <IPFSImage cid={avatar.link} size={ImageSize::Is64x64} rounded=true />
                     }
-                    </LevelRight>
-                    </Level>
-                if let Some(eth_addr) = &identity.eth_addr {
-                    <span class="icon-text">
-                        <span class="icon"><i class="fa-brands fa-ethereum"></i></span>
-                        <span><small>{eth_addr}</small></span>
-                    </span>
-                }
-                <br/>
-                if let Some(btc_addr) = &identity.btc_addr {
-                    <span class="icon-text">
-                        <span class="icon"><i class="fa-brands fa-btc"></i></span>
-                        <span><small>{btc_addr}</small></span>
-                    </span>
-                }
-                <br/>
-                if let Some(bio) = &identity.bio {
-                    <Content>{ bio }</Content>
-                }
-                </MediaContent>
-                <MediaRight>
-                    <DagExplorer key={meta.identity.link.to_string()} cid={meta.identity.link} />
-                </MediaRight>
-            </ybc::Media>
+                    </MediaLeft>
+                    <MediaContent>
+                        <Level>
+                        <LevelLeft>
+                            <LevelItem>
+                                <span class="icon-text">
+                                    <span class="icon"><i class="fas fa-user"></i></span>
+                                    <span><strong>{&identity.name}</strong></span>
+                                </span>
+                            </LevelItem>
+                            <LevelItem>
+                                <Button classes={classes!("is-small", "is-rounded")} onclick={self.follow_cb.clone()} >
+                                {
+                                    if self.following {"Unfollow"} else {"Follow"}
+                                }
+                                </Button>
+                            </LevelItem>
+                        </LevelLeft>
+                        <LevelRight>
+                        if let Some(addr) = identity.ipns_addr {
+                            <LevelItem>
+                                <span class="icon-text">
+                                    <span class="icon"><i class="fa-solid fa-fingerprint"></i></span>
+                                    <span><small>{addr.to_string()}</small></span>
+                                </span>
+                            </LevelItem>
+                        }
+                        </LevelRight>
+                        </Level>
+                    if let Some(eth_addr) = &identity.eth_addr {
+                        <span class="icon-text">
+                            <span class="icon"><i class="fa-brands fa-ethereum"></i></span>
+                            <span><small>{eth_addr}</small></span>
+                        </span>
+                    }
+                    <br/>
+                    if let Some(btc_addr) = &identity.btc_addr {
+                        <span class="icon-text">
+                            <span class="icon"><i class="fa-brands fa-btc"></i></span>
+                            <span><small>{btc_addr}</small></span>
+                        </span>
+                    }
+                    <br/>
+                    if let Some(bio) = &identity.bio {
+                        <Content>{ bio }</Content>
+                    }
+                    </MediaContent>
+                    <MediaRight>
+                        <DagExplorer key={meta.identity.link.to_string()} cid={meta.identity.link} />
+                    </MediaRight>
+                </ybc::Media>
             </Block>
             if self.own_channel
             {
                 <ManageContent addr={ctx.props().addr} />
             }
         }
-            <Tabs alignment={Alignment::Centered} size={Size::Normal} boxed=true toggle=true >
-                <li class={ if self.filter == Filter::Articles {"is-active"} else {""} } >
-                    <Button onclick={ctx.link().callback(|_| Msg::Filter(Filter::Articles))} >
-                        <span class="icon-text">
-                            <span class="icon"><i class="fa-solid fa-newspaper"></i></span>
-                            <span>{"Articles"}</span>
-                        </span>
-                    </Button>
-                </li>
-                <li class={ if self.filter == Filter::Videos {"is-active"} else {""} } >
-                    <Button onclick={ctx.link().callback(|_| Msg::Filter(Filter::Videos))} >
-                        <span class="icon-text">
-                            <span class="icon"><i class="fas fa-video"></i></span>
-                            <span>{"Videos"}</span>
-                        </span>
-                    </Button>
-                </li>
-                <li class={ if self.filter == Filter::Comments {"is-active"} else {""} } >
-                    <Button onclick={ctx.link().callback(|_| Msg::Filter(Filter::Comments))} >
-                        <span class="icon-text">
-                            <span class="icon"><i class="fa-solid fa-comment"></i></span>
-                            <span>{"Comments"}</span>
-                        </span>
-                    </Button>
-                </li>
-                <li class={ if self.filter == Filter::Followees {"is-active"} else {""} } >
-                    <Button onclick={ctx.link().callback(|_| Msg::Filter(Filter::Followees))} >
-                        <span class="icon-text">
-                            <span class="icon"><i class="fas fa-user"></i></span>
-                            <span>{"Followees"}</span>
-                        </span>
-                    </Button>
-                </li>
-                <li class={ if self.filter == Filter::None {"is-active"} else {""} } >
-                    <Button onclick={ctx.link().callback(|_| Msg::Filter(Filter::None))} >
-                        {"No Filter"}
-                    </Button>
-                </li>
-            </Tabs>
+            <Block>
+                <Tabs alignment={Alignment::Centered} size={Size::Normal} boxed=true toggle=true >
+                    <li class={ if self.filter == Filter::Articles {"is-active"} else {""} } >
+                        <Button onclick={ctx.link().callback(|_| Msg::Filter(Filter::Articles))} >
+                            <span class="icon-text">
+                                <span class="icon"><i class="fa-solid fa-newspaper"></i></span>
+                                <span>{"Articles"}</span>
+                            </span>
+                        </Button>
+                    </li>
+                    <li class={ if self.filter == Filter::Videos {"is-active"} else {""} } >
+                        <Button onclick={ctx.link().callback(|_| Msg::Filter(Filter::Videos))} >
+                            <span class="icon-text">
+                                <span class="icon"><i class="fas fa-video"></i></span>
+                                <span>{"Videos"}</span>
+                            </span>
+                        </Button>
+                    </li>
+                    <li class={ if self.filter == Filter::Comments {"is-active"} else {""} } >
+                        <Button onclick={ctx.link().callback(|_| Msg::Filter(Filter::Comments))} >
+                            <span class="icon-text">
+                                <span class="icon"><i class="fa-solid fa-comment"></i></span>
+                                <span>{"Comments"}</span>
+                            </span>
+                        </Button>
+                    </li>
+                    <li class={ if self.filter == Filter::Followees {"is-active"} else {""} } >
+                        <Button onclick={ctx.link().callback(|_| Msg::Filter(Filter::Followees))} >
+                            <span class="icon-text">
+                                <span class="icon"><i class="fas fa-user"></i></span>
+                                <span>{"Followees"}</span>
+                            </span>
+                        </Button>
+                    </li>
+                    <li class={ if self.filter == Filter::None {"is-active"} else {""} } >
+                        <Button onclick={ctx.link().callback(|_| Msg::Filter(Filter::None))} >
+                            {"No Filter"}
+                        </Button>
+                    </li>
+                </Tabs>
+            </Block>
             { self.render_content() }
         </Container>
         </>
@@ -392,7 +393,11 @@ impl ChannelPage {
                     let cid = *cid;
                     let identity = identity.clone();
 
-                    html!(<Followee {cid} {identity} />)
+                    html! {
+                    <Block>
+                        <Followee {cid} {identity} />
+                    </Block>
+                    }
                 })
                 .collect::<Html>();
         }
@@ -433,9 +438,9 @@ impl ChannelPage {
                 };
 
                 return Some(html! {
-                <Box>
+                <Block>
                     <Thumbnail key={cid.to_string()} {cid} {media} {identity} />
-                </Box>
+                </Block>
                 });
             })
             .collect::<Html>()

@@ -10,6 +10,8 @@ use utils::ipfs::IPFSContext;
 
 use yew::{platform::spawn_local, prelude::*};
 
+use crate::pure::Searching;
+
 use super::{display::ChatDisplay, inputs::ChatInputs};
 
 #[derive(Properties, PartialEq)]
@@ -72,7 +74,7 @@ impl Component for ChatWindow {
             </ContextProvider<LiveContext>>
             }
         } else {
-            html! { <span class="bulma-loader-mixin"></span> }
+            html! { <Searching /> }
         }
     }
 }
