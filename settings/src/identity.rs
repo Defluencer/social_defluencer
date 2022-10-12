@@ -274,7 +274,7 @@ impl IdentitySettings {
                             <File name="avatar" files={self.avatar_files.clone()} update={self.avatar_file_cb.clone()} selector_label={"Choose an image..."} selector_icon={html!{<i class="fas fa-upload"></i>}} has_name={Some("image.jpg")} fullwidth=true />
                         </Control>
                     </Field>
-                    <Field label="Create a channel?" help={"Takes ~2 minutes to publish a new channel"} >
+                    <Field label="Create a channel?" help={"Without a channel, your content can only be accessed via direct link or CID"} >
                         <Control>
                             <Checkbox name="channel" checked={self.channel} update={self.channel_cb.clone()} />
                         </Control>

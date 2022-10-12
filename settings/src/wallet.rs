@@ -28,6 +28,7 @@ pub struct Props {
 
 pub struct WalletSettings {
     address: Option<Address>,
+    _handle: Option<ContextHandle<Web3Context>>,
 
     wallet_cb: Callback<MouseEvent>,
 }
@@ -35,6 +36,7 @@ pub struct WalletSettings {
 pub enum Msg {
     //EthAddr(Address),
     ConnectWallet,
+    ContextUpdate(Web3Context),
 }
 
 impl Component for WalletSettings {
@@ -45,14 +47,20 @@ impl Component for WalletSettings {
         #[cfg(debug_assertions)]
         info!("Wallet Setting Create");
 
-        let address = match ctx.link().context::<Web3Context>(Callback::noop()) {
-            Some((context, _)) => Some(context.addr),
-            None => None,
+        let context_cb = ctx.link().callback(Msg::ContextUpdate);
+
+        let (address, _handle) = match ctx.link().context::<Web3Context>(context_cb) {
+            Some((cntx, hndl)) => (Some(cntx.addr), Some(hndl)),
+            None => (None, None),
         };
 
         let wallet_cb = ctx.link().callback(|_e: MouseEvent| Msg::ConnectWallet);
 
-        Self { address, wallet_cb }
+        Self {
+            address,
+            _handle,
+            wallet_cb,
+        }
     }
 
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
@@ -75,6 +83,11 @@ impl Component for WalletSettings {
 
                 false
             }
+            Msg::ContextUpdate(context) => {
+                self.address = Some(context.addr);
+
+                true
+            }
         }
     }
 
@@ -89,7 +102,15 @@ impl Component for WalletSettings {
                     {"Crypto Wallet"}
                 </Subtitle>
                 <Block>
-                <small>{"Metamask is required for now as there's no way to sign content with IPNS key or sign IPNS records with Metamask. I'm working on a better system, stay tuned!"}</small>
+                <small>
+                    <a href="https://metamask.io/" >
+                    {"Metamask"}
+                    </a>
+                {
+                    " is required for now as there's no way to sign content with IPNS key or sign IPNS records with Metamask.
+                    I'm working on a better system, stay tuned!"
+                }
+                </small>
                 </Block>
                 {
                     match self.address {
