@@ -30,7 +30,7 @@ pub fn home_page() -> Html {
             <br/>
             {"Local first means it will work on local networks not connected to the internet or when connectivity is loss."}
             <br/>
-            {"Every users, channels and media content can be used by any other current or future apps on the protocol."}
+            {"Every users, channels and media content can be used by any current or future apps on the protocol."}
             <br/>
             {"Unlike blockchains this protocol is logically decentralized and scale very well."}
             </Subtitle>

@@ -184,7 +184,7 @@ impl Component for ManageContent {
             <Button  onclick={self.remove_modal_cb.clone()} >
                 <span class="icon-text">
                     <span class="icon"><i class="fa-solid fa-minus"></i></span>
-                    <span> { "Content" } </span>
+                    <span> { "Remove" } </span>
                 </span>
             </Button>
         </Buttons>
@@ -259,7 +259,7 @@ impl ManageContent {
             },
             Modals::Remove => html! {
             <section class="modal-card-body">
-                <Field label="Content CID" help={"Remove the content from your channel."} >
+                <Field label="CID" help={"Remove content or followees from your channel."} >
                     <Control>
                         <Input name="cid" value="" update={self.form_cid_cb.clone()} />
                     </Control>
@@ -335,12 +335,19 @@ impl ManageContent {
                 self.images.pop(),
                 ctx.link().callback(Msg::Result),
             )),
-            Modals::Remove => spawn_local(remove_content(
-                channel,
-                self.form_cid,
-                ctx.link().callback(Msg::Result),
-            )),
-            Modals::Follow => spawn_local(add_followee(
+            Modals::Remove => match IPNSAddress::try_from(self.form_cid) {
+                Ok(addr) => spawn_local(remove_follow(
+                    channel,
+                    addr,
+                    ctx.link().callback(Msg::Result),
+                )),
+                Err(_) => spawn_local(remove_content(
+                    channel,
+                    self.form_cid,
+                    ctx.link().callback(Msg::Result),
+                )),
+            },
+            Modals::Follow => spawn_local(add_follow(
                 channel,
                 self.form_ipns.clone(),
                 ctx.link().callback(Msg::Result),
@@ -550,8 +557,15 @@ async fn remove_content(channel: Channel<LocalUpdater>, cid: Cid, callback: Call
     }
 }
 
-async fn add_followee(channel: Channel<LocalUpdater>, addr: IPNSAddress, callback: Callback<Cid>) {
+async fn add_follow(channel: Channel<LocalUpdater>, addr: IPNSAddress, callback: Callback<Cid>) {
     match channel.follow(addr).await {
+        Ok(cid) => callback.emit(cid),
+        Err(e) => error!(&format!("{:#?}", e)),
+    }
+}
+
+async fn remove_follow(channel: Channel<LocalUpdater>, addr: IPNSAddress, callback: Callback<Cid>) {
+    match channel.unfollow(addr).await {
         Ok(cid) => callback.emit(cid),
         Err(e) => error!(&format!("{:#?}", e)),
     }
