@@ -126,52 +126,60 @@ pub fn pure_content(props: &ContentProps) -> Html {
         }
         </MediaLeft>
         <MediaContent>
-            <Level>
-                <LevelLeft>
-                    <LevelItem>
-                        { name }
-                    </LevelItem>
-                    if verified.is_some() && verified.unwrap() {
-                    <LevelItem>
-                        <span class="icon">
-                            <i class="fa-solid fa-check"></i>
-                        </span>
-                    </LevelItem>
-                    }
-                    <LevelItem>
-                        <span class="icon-text">
-                            <span class="icon"><i class="fas fa-clock"></i></span>
-                            <span><small>{ dt }</small></span>
-                        </span>
-                    </LevelItem>
-                </LevelLeft>
-                <LevelRight>
-                    <LevelItem>
-                        <span class="icon-text">
-                            <span class="icon"><i class="fa-solid fa-fingerprint"></i></span>
-                            <span><small>{cid.to_string()}</small></span>
-                        </span>
-                    </LevelItem>
-                </LevelRight>
-            </Level>
-            { content }
-            <Level>
-                <LevelLeft>
-                    <LevelItem>
-                        <CommentButton {cid} >
-                            <Thumbnail key={cid.to_string()} {cid} media={media.clone()} identity={identity.clone()} />
-                        </CommentButton>
-                    </LevelItem>
-                    if !is_author {
-                    <LevelItem>
-                        <ShareButton {cid} >
-                            <Thumbnail key={cid.to_string()} {cid} media={media.clone()} identity={identity.clone()} />
-                        </ShareButton>
-                    </LevelItem>
-                    }
-                </LevelLeft>
-            </Level>
-            { children.clone() }
+            <Block>
+                <Level>
+                    <LevelLeft>
+                        <LevelItem>
+                            { name }
+                        </LevelItem>
+                        if verified.is_some() && verified.unwrap() {
+                        <LevelItem>
+                            <span class="icon">
+                                <i class="fa-solid fa-check"></i>
+                            </span>
+                        </LevelItem>
+                        }
+                        <LevelItem>
+                            <span class="icon-text">
+                                <span class="icon"><i class="fas fa-clock"></i></span>
+                                <span><small>{ dt }</small></span>
+                            </span>
+                        </LevelItem>
+                    </LevelLeft>
+                    <LevelRight>
+                        <LevelItem>
+                            <span class="icon-text">
+                                <span class="icon"><i class="fa-solid fa-fingerprint"></i></span>
+                                <span><small>{cid.to_string()}</small></span>
+                            </span>
+                        </LevelItem>
+                    </LevelRight>
+                </Level>
+            </Block>
+            <Block>
+                { content }
+            </Block>
+            <Block>
+                <Level>
+                    <LevelLeft>
+                        <LevelItem>
+                            <CommentButton {cid} >
+                                <Thumbnail key={cid.to_string()} {cid} media={media.clone()} identity={identity.clone()} />
+                            </CommentButton>
+                        </LevelItem>
+                        if !is_author {
+                        <LevelItem>
+                            <ShareButton {cid} >
+                                <Thumbnail key={cid.to_string()} {cid} media={media.clone()} identity={identity.clone()} />
+                            </ShareButton>
+                        </LevelItem>
+                        }
+                    </LevelLeft>
+                </Level>
+            </Block>
+            <Block>
+                { children.clone() }
+            </Block>
         </MediaContent>
         <MediaRight>
             <DagExplorer key={cid.to_string()} {cid} />

@@ -42,12 +42,12 @@ pub fn home_page() -> Html {
 
     let live_card = feature_card(
         "Live Streaming",
-        "Set custom resolution, quality and codecs. (experimental)",
+        "Set custom resolution, quality and codecs.",
     );
 
     let chat_card = feature_card(
         "Live Chat",
-        "Exchange instant messages with other people online. (experimental)",
+        "Exchange instant messages with other people online.",
     );
 
     let streaming_card = feature_card(
@@ -91,6 +91,18 @@ pub fn home_page() -> Html {
                     <Content>
                         <p>
                             <Title size={HeaderSize::Is5} >
+                                { "How to I use this app?" }
+                            </Title>
+                            {"First, configure IPFS then you can create an identity."}
+                            <br/>
+                            {"A channel can be created at the same time and is used to aggregate content. This is optional but most people like to have a personnal channel."}
+                            <br/>
+                            {"You can find channels by listing the followees of any channel. If you have a channel, don't forget to add channels you like to your social web."}
+                            <br/>
+                            {"Lastly, you can publish content, share and comment. Live streams can only be done using the Defluencer CLI."}
+                        </p>
+                        <p>
+                            <Title size={HeaderSize::Is5} >
                                 { "How does the protocol work?" }
                             </Title>
                             {
@@ -107,7 +119,7 @@ pub fn home_page() -> Html {
                         </p>
                         <p>
                             <Title size={HeaderSize::Is5} >
-                                { "What can be built on top of the protocol?" }
+                                { "What can be built on the protocol?" }
                             </Title>
                             {"There are many things, here's some ideas."}
                             <ul>

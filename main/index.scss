@@ -1,34 +1,38 @@
 @charset "utf-8";
 
 // Set your brand colors
-$scheme-main: #0d1117;
-$scheme-main-bis: #161b22;
+$scheme-main: #000000;
+$scheme-main-bis: rgb(22, 24, 28);
 $scheme-main-ter: #c83895;
 
-$border: #30363d;
+$border: #303030;
 $border-light: #c9d1d9;
 $border-hover: #949596;
 
-$text-strong: #f0f6fc;
-$text: #c9d1d9;
-$text-light: #949596;
+$text-strong: #ffffff;
+$text: #E7E9EA;
+$text-light: #71767B;
 
-$link: $scheme-main-ter;
+$link: $text;
 //$link-invert: ;
-//$link-hover: ;
+$link-hover: $scheme-main-ter;
 //$link-hover-border: ;
 //$link-focus: ;
 //$link-focus-hover: ;
 //$link-active: ;
 //$link-active-border: ;
 
-$background: $scheme-main-ter;
-$code-background: none;
+$background: $scheme-main;
+//$code-background: $scheme-main-bis;
 //$shadow: inset 0px -5px 5px 0px $scheme-main-ter;
 
 $navbar-background-color: $scheme-main-bis;
 
 $primary: $scheme-main-ter;
+
+$box-background-color: $scheme-main-bis;
+
+$modal-card-head-background-color: $scheme-main-bis;
 
 // Update some of Bulma's component variables
 
