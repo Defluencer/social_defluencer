@@ -104,7 +104,7 @@ impl Component for WalletSettings {
                 <Block>
                 <small>
                     <a href="https://metamask.io/" >
-                    {"Metamask"}
+                    <u>{"Metamask"}</u>
                     </a>
                 {
                     " is required for now as there's no way to sign content with IPNS key or sign IPNS records with Metamask.
