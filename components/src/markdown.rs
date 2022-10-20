@@ -48,10 +48,13 @@ pub fn render_markdown(src: &str) -> Html {
                 spine.push(make_tag(tag));
             }
             Event::End(tag) => {
-                // TODO Verify stack end.
                 let l = spine.len();
-                assert!(l >= 1);
-                let mut top = spine.pop().unwrap();
+
+                let mut top = match spine.pop() {
+                    Some(top) => top,
+                    None => continue,
+                };
+
                 if let Tag::CodeBlock(_) = tag {
                     let mut pre = VTag::new("pre");
                     pre.add_child(top.into());
@@ -101,11 +104,13 @@ pub fn render_markdown(src: &str) -> Html {
     }
 
     if elems.len() == 1 {
-        VNode::VTag(Box::new(elems.pop().unwrap()))
-    } else {
-        html! {
-            <div>{ for elems.into_iter() }</div>
+        if let Some(elem) = elems.pop() {
+            return VNode::VTag(Box::new(elem));
         }
+    }
+
+    html! {
+        <div>{ for elems.into_iter() }</div>
     }
 }
 

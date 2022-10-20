@@ -4,10 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-utils = { path = "../utils" }
 components = { path = "../components" }
 
 ybc = { git = "https://github.com/Sionois/ybc", branch = "deps_fix" }
 yew = { git = "https://github.com/SionoiS/yew", branch = "remove-tokio", features = ["csr"] }
-
-gloo-console = { version = "0.2", default-features = false, features = [] }

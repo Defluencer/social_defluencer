@@ -250,7 +250,7 @@ impl ManageContent {
             },
             Modals::Follow => html! {
             <section class="modal-card-body">
-                <Field label="Channel IPNS Address" help={"Only channels can build a social web."} >
+                <Field label="Channel IPNS Address" help={"Channels can build a social web by adding followees."} >
                     <Control>
                         <Input name="cid" value="" update={self.form_ipns_cb.clone()} />
                     </Control>
@@ -295,19 +295,15 @@ impl ManageContent {
     }
 
     fn on_manage(&mut self, ctx: &Context<Self>) -> bool {
-        let (context, _) = ctx
-            .link()
-            .context::<UserContext>(Callback::noop())
-            .expect("User Context");
+        let user = match ctx.link().context::<UserContext>(Callback::noop()) {
+            Some((context, _)) => context.user,
+            None => return false,
+        };
 
-        let user = context.user;
-
-        let (context, _) = ctx
-            .link()
-            .context::<ChannelContext>(Callback::noop())
-            .expect("Channel Context");
-
-        let channel = context.channel;
+        let channel = match ctx.link().context::<ChannelContext>(Callback::noop()) {
+            Some((context, _)) => context.channel,
+            None => return false,
+        };
 
         match self.modal {
             Modals::MicroPost => {
@@ -522,11 +518,10 @@ async fn create_article(
     count: u64,
     callback: Callback<Cid>,
 ) {
-    if markdown.is_none() {
-        return;
-    }
-
-    let markdown = markdown.unwrap();
+    let markdown = match markdown {
+        Some(md) => md,
+        None => return,
+    };
 
     let count = if count == 0 { None } else { Some(count) };
 

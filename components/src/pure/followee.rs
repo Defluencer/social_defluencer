@@ -23,7 +23,20 @@ pub struct FolloweeProps {
 pub fn pure_followee(props: &FolloweeProps) -> Html {
     let FolloweeProps { cid: _, identity } = props;
 
-    let addr = identity.ipns_addr.expect("Followee IPNS Address");
+    let mut name = html! {
+        <span class="icon-text">
+            <span class="icon"><i class="fas fa-user"></i></span>
+            <span><strong>{ &identity.name }</strong></span>
+        </span>
+    };
+
+    if let Some(addr) = identity.ipns_addr {
+        name = html! {
+        <Link<Route> to={Route::Channel{ addr }} >
+            {name}
+        </Link<Route>>
+        };
+    }
 
     html! {
     <Block>
@@ -37,12 +50,7 @@ pub fn pure_followee(props: &FolloweeProps) -> Html {
                 <Level>
                 <LevelLeft>
                     <LevelItem>
-                        <Link<Route> to={Route::Channel{ addr }} >
-                            <span class="icon-text">
-                                <span class="icon"><i class="fas fa-user"></i></span>
-                                <span><strong>{ &identity.name }</strong></span>
-                            </span>
-                        </Link<Route>>
+                        {name}
                     </LevelItem>
                 </LevelLeft>
                 </Level>

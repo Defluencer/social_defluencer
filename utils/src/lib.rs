@@ -8,6 +8,8 @@ pub mod identity;
 pub mod ipfs;
 pub mod web3;
 
+use chrono::{DateTime, Local, TimeZone, Utc};
+
 /// Translate total number of seconds to timecode.
 pub fn seconds_to_timecode(seconds: f64) -> (u8, u8, u8) {
     let rem_seconds = seconds.round();
@@ -25,8 +27,6 @@ pub fn seconds_to_timecode(seconds: f64) -> (u8, u8, u8) {
 
 /// Unix time in total number of seconds to date time string.
 pub fn timestamp_to_datetime(seconds: i64) -> String {
-    use chrono::{DateTime, Local, TimeZone, Utc};
-
     let d_t_unix = Utc.timestamp(seconds, 0);
 
     let local_d_t = DateTime::<Local>::from(d_t_unix);

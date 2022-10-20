@@ -30,16 +30,13 @@ impl Component for Markdown {
     type Properties = Props;
 
     fn create(ctx: &Context<Self>) -> Self {
-        let (context, _handle) = ctx
-            .link()
-            .context::<IPFSContext>(Callback::noop())
-            .expect("IPFS Context");
-
-        spawn_local(get_markdown_file(
-            context.client.clone(),
-            ctx.link().callback(Msg::Text),
-            ctx.props().cid,
-        ));
+        if let Some((context, _)) = ctx.link().context::<IPFSContext>(Callback::noop()) {
+            spawn_local(get_markdown_file(
+                context.client,
+                ctx.link().callback(Msg::Text),
+                ctx.props().cid,
+            ));
+        }
 
         Self { markdown: html!() }
     }

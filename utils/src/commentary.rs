@@ -3,6 +3,7 @@
 use cid::Cid;
 
 use linked_data::comments::Comment;
+
 use yew::Callback;
 
 #[derive(Clone)]

@@ -26,7 +26,7 @@ use serde::{Deserialize, Serialize};
 
 use utils::{ipfs::IPFSContext, seconds_to_timecode};
 
-use wasm_bindgen::{closure::Closure, JsCast};
+use wasm_bindgen::{closure::Closure, JsCast, UnwrapThrowExt};
 
 use web_sys::{HtmlMediaElement, MediaSource, MediaSourceReadyState, SourceBuffer, Url};
 
@@ -133,27 +133,16 @@ impl Component for VideoPlayer {
         let (context, _handle) = ctx
             .link()
             .context::<IPFSContext>(Callback::noop())
-            .expect("IPFS Context");
+            .expect_throw("IPFS Context");
 
         let ipfs = context.client;
 
         let ema = ExponentialMovingAverage::new();
 
-        let media_source = match MediaSource::new() {
-            Ok(media_source) => media_source,
-            Err(e) => {
-                error!(&format!("{:#?}", e));
-                std::process::abort();
-            }
-        };
+        let media_source = MediaSource::new().expect_throw("New Media Source");
 
-        let object_url = match Url::create_object_url_with_source(&media_source) {
-            Ok(object_url) => object_url,
-            Err(e) => {
-                error!(&format!("{:#?}", e));
-                std::process::abort();
-            }
-        };
+        let object_url =
+            Url::create_object_url_with_source(&media_source).expect_throw("New Object URL");
 
         let cb = ctx.link().callback(|_| Msg::SourceOpen);
         let closure = Closure::wrap(Box::new(move || cb.emit(())) as Box<dyn Fn()>);
@@ -212,40 +201,10 @@ impl Component for VideoPlayer {
 
     fn rendered(&mut self, ctx: &Context<Self>, first_render: bool) {
         if first_render {
-            let window = match web_sys::window() {
-                Some(window) => window,
-                None => {
-                    #[cfg(debug_assertions)]
-                    error!("No Window Object");
-                    return;
-                }
-            };
-
-            let document = match window.document() {
-                Some(document) => document,
-                None => {
-                    #[cfg(debug_assertions)]
-                    error!("No Document Object");
-                    return;
-                }
-            };
-
-            let element = match document.get_element_by_id("video_player") {
-                Some(document) => document,
-                None => {
-                    #[cfg(debug_assertions)]
-                    error!("No Element by Id");
-                    return;
-                }
-            };
-
-            let media_element: HtmlMediaElement = match element.dyn_into() {
-                Ok(document) => document,
-                Err(e) => {
-                    error!(&format!("{:#?}", e));
-                    return;
-                }
-            };
+            let window = web_sys::window().unwrap_throw();
+            let document = window.document().unwrap_throw();
+            let element = document.get_element_by_id("video_player").unwrap_throw();
+            let media_element: HtmlMediaElement = element.dyn_into().unwrap_throw();
 
             self.seeking_closure = if let Some(Either::Right(_)) = self.player_type {
                 let cb = ctx.link().callback(|()| Msg::Seeking);
@@ -314,7 +273,7 @@ impl VideoPlayer {
             }
             Either::Right(metadata) => {
                 self.media_source
-                    .set_duration(metadata.duration.expect("Video Duration"));
+                    .set_duration(metadata.duration.expect_throw("Video Duration"));
 
                 spawn_local({
                     let ipfs = self.ipfs.clone();
@@ -478,14 +437,7 @@ impl VideoPlayer {
 
         let closure = Closure::wrap(Box::new(move || cb.emit(())) as Box<dyn Fn()>);
 
-        let window = match web_sys::window() {
-            Some(window) => window,
-            None => {
-                #[cfg(debug_assertions)]
-                error!("No Window Object");
-                return;
-            }
-        };
+        let window = web_sys::window().unwrap_throw();
 
         match window.set_timeout_with_callback_and_timeout_and_arguments_0(
             closure.as_ref().unchecked_ref(),
@@ -930,7 +882,7 @@ impl VideoPlayer {
         }
 
         if let Some(Either::Right(metadata)) = &self.player_type {
-            if buff_end >= metadata.duration.expect("Video Duration") {
+            if buff_end >= metadata.duration.expect_throw("Video Duration") {
                 #[cfg(debug_assertions)]
                 info!("End Of Video");
                 return;

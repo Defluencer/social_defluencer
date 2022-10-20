@@ -8,8 +8,6 @@ utils = { path = "../utils" }
 components = { path = "../components" }
 
 linked-data = { git = "https://github.com/Defluencer/rust-defluencer", branch = "develop" }
-ipfs-api = { git = "https://github.com/Defluencer/rust-defluencer", branch = "develop" }
-defluencer = { git = "https://github.com/Defluencer/rust-defluencer", branch = "develop" }
 
 ybc = { git = "https://github.com/Sionois/ybc", branch = "deps_fix" }
 yew = { git = "https://github.com/SionoiS/yew", branch = "remove-tokio", features = ["csr"] }

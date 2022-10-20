@@ -32,23 +32,21 @@ impl Component for ChatWindow {
     type Properties = Props;
 
     fn create(ctx: &Context<Self>) -> Self {
-        let (context, _) = ctx
-            .link()
-            .context::<IPFSContext>(Callback::noop())
-            .expect("IPFS Context");
+        if let Some((context, _)) = ctx.link().context::<IPFSContext>(Callback::noop()) {
+            let ipfs = context.client;
 
-        spawn_local({
-            let cb = ctx.link().callback(Msg::Settings);
-            let ipfs = context.client.clone();
-            let cid = ctx.props().cid;
+            spawn_local({
+                let cb = ctx.link().callback(Msg::Settings);
+                let cid = ctx.props().cid;
 
-            async move {
-                match ipfs.dag_get::<&str, LiveSettings>(cid, None).await {
-                    Ok(id) => cb.emit(id),
-                    Err(e) => error!(&format!("{:#?}", e)),
+                async move {
+                    match ipfs.dag_get::<&str, LiveSettings>(cid, None).await {
+                        Ok(id) => cb.emit(id),
+                        Err(e) => error!(&format!("{:#?}", e)),
+                    }
                 }
-            }
-        });
+            });
+        }
 
         Self { context: None }
     }

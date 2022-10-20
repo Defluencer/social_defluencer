@@ -55,16 +55,13 @@ impl Component for ChatInputs {
 
         if name.is_empty() {
             if let Some(ipld) = utils::identity::get_current_identity() {
-                let (context, _) = ctx
-                    .link()
-                    .context::<IPFSContext>(Callback::noop())
-                    .expect("IPFS Context");
-
-                spawn_local(utils::r#async::dag_get(
-                    context.client,
-                    ipld.link,
-                    ctx.link().callback(Msg::Identity),
-                ))
+                if let Some((context, _)) = ctx.link().context::<IPFSContext>(Callback::noop()) {
+                    spawn_local(utils::r#async::dag_get(
+                        context.client,
+                        ipld.link,
+                        ctx.link().callback(Msg::Identity),
+                    ))
+                }
             }
         }
 
@@ -158,6 +155,16 @@ impl ChatInputs {
 
     /// Send chat message via gossipsub.
     fn send_message(&mut self, ctx: &Context<Self>) -> bool {
+        let ipfs = match ctx.link().context::<IPFSContext>(Callback::noop()) {
+            Some((context, _)) => context.client,
+            None => return false,
+        };
+
+        let live = match ctx.link().context::<LiveContext>(Callback::noop()) {
+            Some((context, _)) => context.settings,
+            None => return false,
+        };
+
         let cid = match self.signature {
             Some(cid) => cid,
             None => {
@@ -184,26 +191,15 @@ impl ChatInputs {
         #[cfg(debug_assertions)]
         info!("Publish Message");
 
-        let (context, _) = ctx
-            .link()
-            .context::<IPFSContext>(Callback::noop())
-            .expect("IPFS Context");
-        let ipfs = context.client;
-
-        let (context, _) = ctx
-            .link()
-            .context::<LiveContext>(Callback::noop())
-            .expect("Live Context");
-
-        let topic = context.settings.chat_topic.unwrap();
-
-        spawn_local({
-            async move {
-                if let Err(e) = ipfs.pubsub_pub(topic, data).await {
-                    error!(&format!("{:#?}", e));
+        if let Some(topic) = live.chat_topic {
+            spawn_local({
+                async move {
+                    if let Err(e) = ipfs.pubsub_pub(topic, data).await {
+                        error!(&format!("{:#?}", e));
+                    }
                 }
-            }
-        });
+            });
+        }
 
         true
     }
@@ -231,21 +227,19 @@ impl ChatInputs {
         #[cfg(debug_assertions)]
         info!("Name Submitted");
 
+        let node = match ctx.link().context::<IPFSContext>(Callback::noop()) {
+            Some((context, _)) => context.peer_id,
+            None => return false,
+        };
+
+        let user = match ctx.link().context::<UserContext>(Callback::noop()) {
+            Some((context, _)) => context.user,
+            None => return false,
+        };
+
         let name = self.name.clone();
 
-        let (context, _) = ctx
-            .link()
-            .context::<IPFSContext>(Callback::noop())
-            .expect("IPFS Context");
-        let node = context.peer_id;
-
         let data = ChatInfo { node, name };
-
-        let (context, _) = ctx
-            .link()
-            .context::<UserContext>(Callback::noop())
-            .expect("User Context");
-        let user = context.user;
 
         spawn_local({
             let cb = ctx.link().callback(Msg::Signature);

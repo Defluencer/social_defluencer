@@ -141,7 +141,10 @@ impl CommentButton {
     }
 
     fn on_create(&mut self, ctx: &Context<Self>) -> bool {
-        let user = self.user_context.as_ref().unwrap().user.clone();
+        let user = match self.user_context.as_ref() {
+            Some(cntx) => cntx.user.clone(),
+            None => return false,
+        };
 
         let origin = ctx.props().cid;
         let text = self.text.clone();

@@ -48,38 +48,34 @@ impl Component for ChatDisplay {
     type Properties = ();
 
     fn create(ctx: &Context<Self>) -> Self {
-        let (live_context, _) = ctx
-            .link()
-            .context::<LiveContext>(Callback::noop())
-            .expect("Live Context");
-
-        let topic = live_context.settings.chat_topic.unwrap();
-
-        let (ipfs_context, _) = ctx
-            .link()
-            .context::<IPFSContext>(Callback::noop())
-            .expect("IPFS Context");
-
         let (handle, regis) = AbortHandle::new_pair();
 
-        spawn_local({
-            let ipfs = ipfs_context.client.clone();
-            let cb = ctx.link().callback(Msg::PubSub).clone();
-            let topic = topic.clone();
+        if let Some((context, _)) = ctx.link().context::<IPFSContext>(Callback::noop()) {
+            let ipfs = context.client;
 
-            async move {
-                let stream = ipfs.pubsub_sub(topic.into_bytes());
+            if let Some((context, _)) = ctx.link().context::<LiveContext>(Callback::noop()) {
+                let live = context.settings;
 
-                let mut stream = Abortable::new(stream, regis).boxed_local();
+                if let Some(topic) = live.chat_topic {
+                    spawn_local({
+                        let cb = ctx.link().callback(Msg::PubSub).clone();
 
-                while let Some(result) = stream.next().await {
-                    match result {
-                        Ok(msg) => cb.emit((msg.from, msg.data)),
-                        Err(e) => error!(&format!("{:#?}", e)),
-                    }
+                        async move {
+                            let stream = ipfs.pubsub_sub(topic.into_bytes());
+
+                            let mut stream = Abortable::new(stream, regis).boxed_local();
+
+                            while let Some(result) = stream.next().await {
+                                match result {
+                                    Ok(msg) => cb.emit((msg.from, msg.data)),
+                                    Err(e) => error!(&format!("{:#?}", e)),
+                                }
+                            }
+                        }
+                    });
                 }
             }
-        });
+        }
 
         Self {
             handle,
@@ -118,6 +114,11 @@ impl Component for ChatDisplay {
 impl ChatDisplay {
     /// Callback when a message is received
     fn on_message(&mut self, ctx: &Context<Self>, from: Cid, data: Vec<u8>) -> bool {
+        let ipfs = match ctx.link().context::<IPFSContext>(Callback::noop()) {
+            Some((context, _)) => context.client,
+            None => return false,
+        };
+
         let peer_id = match PeerId::try_from(from) {
             Ok(peer) => peer,
             Err(e) => {
@@ -157,13 +158,8 @@ impl ChatDisplay {
 
         self.pending_verifs.insert(signature.link, text);
 
-        let (context, _) = ctx
-            .link()
-            .context::<IPFSContext>(Callback::noop())
-            .expect("IPFS Context");
-
         spawn_local(user_verification(
-            context.client.clone(),
+            ipfs,
             peer_id,
             signature.link,
             ctx.link().callback(Msg::Verification),

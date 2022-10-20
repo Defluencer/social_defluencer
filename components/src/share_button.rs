@@ -105,11 +105,10 @@ impl ShareButton {
     }
 
     fn on_share(&mut self, ctx: &Context<Self>) -> bool {
-        if self.channel.is_none() {
-            return false;
-        }
-
-        let channel = self.channel.as_ref().unwrap().clone();
+        let channel = match self.channel.as_ref() {
+            Some(channel) => channel.clone(),
+            None => return false,
+        };
 
         spawn_local(share_content(channel, ctx.props().cid));
 

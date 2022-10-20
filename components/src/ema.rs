@@ -1,8 +1,8 @@
 #![cfg(target_arch = "wasm32")]
 
-use web_sys::Performance;
+use wasm_bindgen::UnwrapThrowExt;
 
-use gloo_console::error;
+use web_sys::Performance;
 
 #[cfg(debug_assertions)]
 use gloo_console::info;
@@ -23,21 +23,8 @@ pub struct ExponentialMovingAverage {
 
 impl ExponentialMovingAverage {
     pub fn new() -> Self {
-        let window = match web_sys::window() {
-            Some(window) => window,
-            None => {
-                error!("Cannot Access Window Aborting...");
-                std::process::abort();
-            }
-        };
-
-        let performance = match window.performance() {
-            Some(window) => window,
-            None => {
-                error!("Cannot Access Performance Aborting...");
-                std::process::abort();
-            }
-        };
+        let window = web_sys::window().unwrap_throw();
+        let performance = window.performance().unwrap_throw();
 
         Self {
             performance,

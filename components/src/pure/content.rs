@@ -118,6 +118,18 @@ pub fn pure_content(props: &ContentProps) -> Html {
 
     let dt = timestamp_to_datetime(media.user_timestamp());
 
+    let mut check = html!();
+
+    if verified.is_some() && verified.unwrap() {
+        check = html! {
+        <LevelItem>
+            <span class="icon">
+                <i class="fa-solid fa-check"></i>
+            </span>
+        </LevelItem>
+        };
+    }
+
     html! {
     <ybc::Media>
         <MediaLeft>
@@ -132,13 +144,7 @@ pub fn pure_content(props: &ContentProps) -> Html {
                         <LevelItem>
                             { name }
                         </LevelItem>
-                        if verified.is_some() && verified.unwrap() {
-                        <LevelItem>
-                            <span class="icon">
-                                <i class="fa-solid fa-check"></i>
-                            </span>
-                        </LevelItem>
-                        }
+                        {check}
                         <LevelItem>
                             <span class="icon-text">
                                 <span class="icon"><i class="fas fa-clock"></i></span>

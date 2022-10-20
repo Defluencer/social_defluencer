@@ -258,7 +258,6 @@ dependencies = [
  "futures-util",
  "gloo-console",
  "ipfs-api",
- "js-sys",
  "linked-data",
  "pulldown-cmark",
  "serde",
@@ -713,10 +712,8 @@ version = "0.1.0"
 dependencies = [
  "cid",
  "components",
- "defluencer",
  "futures-util",
  "gloo-console",
- "ipfs-api",
  "linked-data",
  "utils",
  "ybc",
@@ -1135,8 +1132,6 @@ name = "home"
 version = "0.1.0"
 dependencies = [
  "components",
- "gloo-console",
- "utils",
  "ybc",
  "yew",
 ]
@@ -1499,7 +1494,6 @@ version = "0.1.0"
 dependencies = [
  "cid",
  "components",
- "linked-data",
  "ybc",
  "yew",
 ]
@@ -1538,8 +1532,6 @@ dependencies = [
  "live",
  "settings",
  "utils",
- "wasm-bindgen-futures",
- "ybc",
  "yew",
  "yew-router",
 ]

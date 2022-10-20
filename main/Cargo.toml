@@ -15,11 +15,8 @@ components = { path = "../components" }
 
 linked-data = { git = "https://github.com/Defluencer/rust-defluencer", branch = "develop" }
 
-ybc = { git = "https://github.com/Sionois/ybc", branch = "deps_fix", default-features = false }
 yew = { git = "https://github.com/SionoiS/yew", branch = "remove-tokio", default-features = false, features = ["csr"] }
 yew-router = { git = "https://github.com/SionoiS/yew", branch = "remove-tokio", default-features = false }
 
 gloo-console = { version = "0.2", default-features = false, features = [] }
 heck = { version = "0.4", default-features = false, features = [] }
-wasm-bindgen-futures = { version = "0.4", default-features = false, features = [] }
-

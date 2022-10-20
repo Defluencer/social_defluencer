@@ -7,8 +7,6 @@ use futures_util::{
     StreamExt, TryStreamExt,
 };
 
-use linked_data::{comments::Comment, identity::Identity, types::IPNSAddress};
-
 use utils::{
     commentary::CommentaryContext, defluencer::ChannelContext, follows::get_follow_list,
     ipfs::IPFSContext, timestamp_to_datetime,
@@ -29,7 +27,7 @@ use ipfs_api::IpfsService;
 
 use defluencer::{crypto::signed_link::SignedLink, Defluencer};
 
-use linked_data::media::Media;
+use linked_data::{comments::Comment, identity::Identity, media::Media, types::IPNSAddress};
 
 use ybc::{Container, Section};
 
@@ -76,19 +74,6 @@ impl Component for ContentPage {
         #[cfg(debug_assertions)]
         info!("Content Page Create");
 
-        let (context, _) = ctx
-            .link()
-            .context::<IPFSContext>(Callback::noop())
-            .expect("IPFS Context");
-
-        let ipfs = context.client;
-
-        spawn_local(get_content(
-            ipfs.clone(),
-            ctx.link().callback(Msg::Media),
-            ctx.props().cid,
-        ));
-
         let identity_cb = ctx.link().callback(Msg::Identity);
 
         let mut follows = get_follow_list();
@@ -100,13 +85,23 @@ impl Component for ContentPage {
         let crawl_cb = ctx.link().callback(Msg::Crawl);
         let (crawl_handle, regis) = AbortHandle::new_pair();
 
-        spawn_local(web_crawl(ipfs, follows, crawl_cb, regis));
-
         let comment_cb = ctx.link().callback(Msg::Comment);
 
         let commentary = CommentaryContext {
             callback: comment_cb.clone(),
         };
+
+        if let Some((context, _)) = ctx.link().context::<IPFSContext>(Callback::noop()) {
+            let ipfs = context.client;
+
+            spawn_local(get_content(
+                ipfs.clone(),
+                ctx.link().callback(Msg::Media),
+                ctx.props().cid,
+            ));
+
+            spawn_local(web_crawl(ipfs, follows, crawl_cb, regis));
+        }
 
         Self {
             media: None,
@@ -130,12 +125,10 @@ impl Component for ContentPage {
         #[cfg(debug_assertions)]
         info!("Content Page Update");
 
-        let (context, _) = ctx
-            .link()
-            .context::<IPFSContext>(Callback::noop())
-            .expect("IPFS Context");
-
-        let ipfs = context.client;
+        let ipfs = match ctx.link().context::<IPFSContext>(Callback::noop()) {
+            Some((context, _)) => context.client,
+            None => return false,
+        };
 
         match msg {
             Msg::Crawl(index) => {
@@ -205,8 +198,13 @@ impl Component for ContentPage {
 
         if let Some(media) = self.media.as_ref() {
             if let Some(identity) = self.identities.get(&media.identity().link) {
-                let verified = identity.eth_addr.is_some()
-                    && identity.eth_addr.as_ref().unwrap() == &self.addr;
+                let mut verified = false;
+
+                if let Some(eth_addr) = &identity.eth_addr {
+                    if eth_addr == &self.addr {
+                        verified = true;
+                    }
+                }
 
                 content = html! { <Content key={ctx.props().cid.to_string()} cid={ctx.props().cid} media={media.clone()} identity={identity.clone()} {verified} /> };
             }
@@ -243,14 +241,14 @@ impl ContentPage {
         self.comments
             .iter()
             .filter_map(|(cid, comment)| {
-                if origin != comment.origin.expect("Comment") {
+                let comment_origin = comment.origin?;
+
+                if origin != comment_origin {
                     return None;
                 }
 
-                let identity = match self.identities.get(&comment.identity.link) {
-                    Some(id) => id.clone(),
-                    None => return None,
-                };
+                let identity = self.identities.get(&comment.identity.link)?;
+                let identity = identity.clone();
 
                 let cid = *cid;
                 let media = Media::Comment(comment.clone());

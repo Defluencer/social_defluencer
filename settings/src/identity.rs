@@ -115,39 +115,10 @@ impl Component for IdentitySettings {
         #[cfg(debug_assertions)]
         info!("Identity Setting Create");
 
-        let current_id: Option<IPLDLink> = get_current_identity();
-
-        let identity_set: HashSet<IPLDLink> = get_identities().unwrap_or_default();
-
-        let (context, _) = ctx
-            .link()
-            .context::<IPFSContext>(Callback::noop())
-            .expect("IPFS Context");
-        let ipfs = context.client;
-
-        let cb = ctx.link().callback(Msg::GetIDs);
-
-        for identity in identity_set {
-            spawn_local({
-                let cb = cb.clone();
-                let ipfs = ipfs.clone();
-
-                async move {
-                    match ipfs.dag_get::<&str, Identity>(identity.link, None).await {
-                        Ok(id) => cb.emit((identity.link, id)),
-                        Err(e) => error!(&format!("{:?}", e)),
-                    }
-                }
-            });
-        }
-
         let create_modal_cb = ctx.link().callback(|_| Msg::Modal(Modals::Create));
         let import_modal_cb = ctx.link().callback(|_| Msg::Modal(Modals::Import));
-
         let confirm_delete_cb = ctx.link().callback(|_| Msg::ConfirmDelete);
-
         let close_modal_cb = ctx.link().callback(|_| Msg::Modal(Modals::None));
-
         let name_cb = ctx.link().callback(Msg::Name);
         let channel_cb = ctx.link().callback(Msg::Channel);
         let avatar_file_cb = ctx.link().callback(Msg::Avatar);
@@ -155,6 +126,30 @@ impl Component for IdentitySettings {
         let create_cb = ctx.link().callback(|_| Msg::Create);
         let import_cb = ctx.link().callback(|_| Msg::Import);
         let bio_cb = ctx.link().callback(Msg::Bio);
+
+        let current_id: Option<IPLDLink> = get_current_identity();
+
+        let identity_set: HashSet<IPLDLink> = get_identities().unwrap_or_default();
+
+        let cb = ctx.link().callback(Msg::GetIDs);
+
+        if let Some((context, _)) = ctx.link().context::<IPFSContext>(Callback::noop()) {
+            let ipfs = context.client;
+
+            for identity in identity_set {
+                spawn_local({
+                    let cb = cb.clone();
+                    let ipfs = ipfs.clone();
+
+                    async move {
+                        match ipfs.dag_get::<&str, Identity>(identity.link, None).await {
+                            Ok(id) => cb.emit((identity.link, id)),
+                            Err(e) => error!(&format!("{:?}", e)),
+                        }
+                    }
+                });
+            }
+        }
 
         Self {
             modal: Modals::None,
@@ -366,7 +361,11 @@ impl IdentitySettings {
             .map(|(cid, identity)| {
                 let cid = *cid;
 
-                let disabled = self.current_id.is_some() && cid == self.current_id.unwrap().link;
+                let mut disabled = false;
+
+                if let Some(ipld) = self.current_id {
+                    disabled = cid == ipld.link;
+                }
 
                 let set_cb = ctx.link().callback(move |_: MouseEvent| Msg::SetID(cid));
                 let delete_cb = ctx.link().callback(move |_: MouseEvent| Msg::DeleteID(cid));
@@ -418,6 +417,16 @@ impl IdentitySettings {
     }
 
     fn on_set_identity(&mut self, cid: Cid, ctx: &Context<Self>) -> bool {
+        let ipfs = match ctx.link().context::<IPFSContext>(Callback::noop()) {
+            Some((context, _)) => context.client,
+            None => return false,
+        };
+
+        let signer = match ctx.link().context::<Web3Context>(Callback::noop()) {
+            Some((context, _)) => context.signer,
+            None => return false,
+        };
+
         let identity = match self.identity_map.get(&cid) {
             Some(id) => id,
             None => {
@@ -428,18 +437,6 @@ impl IdentitySettings {
         let link: IPLDLink = cid.into();
         set_current_identity(link);
         self.current_id = Some(link);
-
-        let (context, _) = ctx
-            .link()
-            .context::<IPFSContext>(Callback::noop())
-            .expect("IPFS Context");
-        let ipfs = context.client;
-
-        let (web3_context, _) = ctx
-            .link()
-            .context::<Web3Context>(Callback::noop())
-            .expect("Web3 Context");
-        let signer = web3_context.signer;
 
         let user = Some(UserContext::new(ipfs.clone(), signer, cid));
 
@@ -461,6 +458,16 @@ impl IdentitySettings {
 
     /// Callback when a new identity was created
     fn on_identity_created(&mut self, ctx: &Context<Self>, cid: Cid, identity: Identity) -> bool {
+        let ipfs = match ctx.link().context::<IPFSContext>(Callback::noop()) {
+            Some((context, _)) => context.client,
+            None => return false,
+        };
+
+        let signer = match ctx.link().context::<Web3Context>(Callback::noop()) {
+            Some((context, _)) => context.signer,
+            None => return false,
+        };
+
         self.loading = false;
         self.modal = Modals::None;
 
@@ -474,18 +481,6 @@ impl IdentitySettings {
             let link: IPLDLink = cid.into();
             set_current_identity(link);
             self.current_id = Some(link);
-
-            let (context, _) = ctx
-                .link()
-                .context::<IPFSContext>(Callback::noop())
-                .expect("IPFS Context");
-            let ipfs = context.client;
-
-            let (web3_context, _) = ctx
-                .link()
-                .context::<Web3Context>(Callback::noop())
-                .expect("Web3 Context");
-            let signer = web3_context.signer;
 
             let user = Some(UserContext::new(ipfs.clone(), signer, cid));
 
@@ -567,17 +562,15 @@ impl IdentitySettings {
     }
 
     fn on_create(&mut self, ctx: &Context<Self>) -> bool {
-        let (context, _) = ctx
-            .link()
-            .context::<IPFSContext>(Callback::noop())
-            .expect("IPFS Context");
-        let ipfs = context.client;
+        let ipfs = match ctx.link().context::<IPFSContext>(Callback::noop()) {
+            Some((context, _)) => context.client,
+            None => return false,
+        };
 
-        let (context, _) = ctx
-            .link()
-            .context::<Web3Context>(Callback::noop())
-            .expect("Web3 Context");
-        let addr = context.addr;
+        let addr = match ctx.link().context::<Web3Context>(Callback::noop()) {
+            Some((context, _)) => context.addr,
+            None => return false,
+        };
 
         spawn_local(create_identity(
             ipfs,
@@ -596,11 +589,10 @@ impl IdentitySettings {
     }
 
     fn on_import(&mut self, ctx: &Context<Self>) -> bool {
-        let (context, _) = ctx
-            .link()
-            .context::<IPFSContext>(Callback::noop())
-            .expect("IPFS Context");
-        let ipfs = context.client;
+        let ipfs = match ctx.link().context::<IPFSContext>(Callback::noop()) {
+            Some((context, _)) => context.client,
+            None => return false,
+        };
 
         let cid = match Cid::try_from(self.name.as_str()) {
             Ok(cid) => cid,
@@ -648,6 +640,11 @@ impl IdentitySettings {
     }
 
     fn on_confirm_delete(&mut self, ctx: &Context<Self>) -> bool {
+        let ipfs = match ctx.link().context::<IPFSContext>(Callback::noop()) {
+            Some((context, _)) => context.client,
+            None => return false,
+        };
+
         let cid = match self.delete_cid.take() {
             Some(cid) => cid,
             None => return false,
@@ -670,12 +667,6 @@ impl IdentitySettings {
         if let Some(identity) = self.identity_map.remove(&cid) {
             use heck::ToSnakeCase;
             let key = identity.name.to_snake_case();
-
-            let (context, _) = ctx
-                .link()
-                .context::<IPFSContext>(Callback::noop())
-                .expect("IPFS Context");
-            let ipfs = context.client;
 
             spawn_local(delete_channel(ipfs, key));
         }

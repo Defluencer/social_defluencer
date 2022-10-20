@@ -12,7 +12,7 @@ use linked_data::{identity::Identity, types::IPNSAddress};
 
 use std::collections::{HashMap, HashSet, VecDeque};
 
-use components::pure::{DagExplorer, Followee, IPFSImage, NavigationBar, Searching, Thumbnail};
+use components::{pure::{DagExplorer, Followee, IPFSImage, NavigationBar, Searching, Thumbnail}, Route};
 
 use futures_util::stream::AbortHandle;
 
@@ -27,8 +27,8 @@ use utils::{
 };
 
 use ybc::{
-    Alignment, Block, Button, Container, Content, ImageSize, Level, LevelItem, LevelLeft,
-    LevelRight, MediaContent, MediaLeft, MediaRight, Section, Size, Tabs,
+    Alignment, Block, Button, ButtonRouter, Container, Content, ImageSize, Level, LevelItem,
+    LevelLeft, LevelRight, MediaContent, MediaLeft, MediaRight, Section, Size, Tabs,
 };
 
 use yew::{platform::spawn_local, prelude::*};
@@ -63,8 +63,8 @@ pub struct ChannelPage {
 
     own_channel: bool,
 
-    follow_cb: Callback<MouseEvent>,
-    following: bool,
+    subscribe_cb: Callback<MouseEvent>,
+    subscription: bool,
 
     filter: Filter,
 
@@ -106,25 +106,22 @@ impl Component for ChannelPage {
 
         let addr = ctx.props().addr;
 
-        let (context, _) = ctx
-            .link()
-            .context::<IPFSContext>(Callback::noop())
-            .expect("IPFS Context");
-
-        spawn_local(utils::r#async::get_channels(
-            context.client.clone(),
-            update_cb.clone(),
-            HashSet::from([addr]),
-        ));
-
         let (sub_handle, regis) = AbortHandle::new_pair();
 
-        spawn_local(utils::r#async::channel_subscribe(
-            context.client.clone(),
-            update_cb.clone(),
-            addr,
-            regis,
-        ));
+        if let Some((context, _)) = ctx.link().context::<IPFSContext>(Callback::noop()) {
+            spawn_local(utils::r#async::get_channels(
+                context.client.clone(),
+                update_cb.clone(),
+                HashSet::from([addr]),
+            ));
+
+            spawn_local(utils::r#async::channel_subscribe(
+                context.client.clone(),
+                update_cb.clone(),
+                addr,
+                regis,
+            ));
+        };
 
         let mut own_channel = false;
 
@@ -163,8 +160,8 @@ impl Component for ChannelPage {
 
             own_channel,
 
-            follow_cb,
-            following,
+            subscribe_cb: follow_cb,
+            subscription: following,
 
             filter: Filter::None,
 
@@ -191,6 +188,11 @@ impl Component for ChannelPage {
         #[cfg(debug_assertions)]
         info!("Channel Page Changed");
 
+        let ipfs = match ctx.link().context::<IPFSContext>(Callback::noop()) {
+            Some((context, _)) => context.client,
+            None => return false,
+        };
+
         if self.addr != ctx.props().addr {
             self.addr = ctx.props().addr;
             self.metadata.take();
@@ -204,20 +206,14 @@ impl Component for ChannelPage {
                 handle.abort();
             }
 
-            let (context, _) = ctx
-                .link()
-                .context::<IPFSContext>(Callback::noop())
-                .expect("IPFS Context");
-            let ipfs = context.client;
+            let (sub_handle, regis) = AbortHandle::new_pair();
+            self.sub_handle = sub_handle;
 
             spawn_local(utils::r#async::get_channels(
                 ipfs.clone(),
                 self.update_cb.clone(),
                 HashSet::from([self.addr]),
             ));
-
-            let (sub_handle, regis) = AbortHandle::new_pair();
-            self.sub_handle = sub_handle;
 
             spawn_local(utils::r#async::channel_subscribe(
                 ipfs.clone(),
@@ -232,7 +228,7 @@ impl Component for ChannelPage {
                 }
             }
 
-            self.following = utils::follows::get_follow_list().contains(&self.addr);
+            self.subscription = utils::follows::get_follow_list().contains(&self.addr);
 
             return true;
         }
@@ -291,12 +287,19 @@ impl ChannelPage {
                                 </span>
                             </LevelItem>
                             <LevelItem>
-                                <Button classes={classes!("is-small", "is-rounded")} onclick={self.follow_cb.clone()} >
+                                <Button classes={classes!("is-small", "is-rounded")} onclick={self.subscribe_cb.clone()} >
                                 {
-                                    if self.following {"Unfollow"} else {"Follow"}
+                                    if self.subscription {"Unsubscribe"} else {"Subscribe"}
                                 }
                                 </Button>
                             </LevelItem>
+                            if let Some(live) = meta.live {
+                            <LevelItem>
+                                <ButtonRouter<Route> classes={classes!("is-small", "is-rounded")} route={Route::Live{ cid: live.link }} >
+                                    {"Live"}
+                                </ButtonRouter<Route>>
+                            </LevelItem>
+                            }
                         </LevelLeft>
                         <LevelRight>
                         if let Some(addr) = identity.ipns_addr {
@@ -460,15 +463,14 @@ impl ChannelPage {
     }
 
     fn on_channel_update(&mut self, ctx: &Context<Self>, metadata: ChannelMetadata) -> bool {
+        let ipfs = match ctx.link().context::<IPFSContext>(Callback::noop()) {
+            Some((context, _)) => context.client,
+            None => return false,
+        };
+
         if self.metadata.as_ref() == Some(&metadata) {
             return false;
         }
-
-        let (context, _) = ctx
-            .link()
-            .context::<IPFSContext>(Callback::noop())
-            .expect("IPFS Context");
-        let ipfs = context.client;
 
         if metadata.follows.is_some() {
             spawn_local(get_followees(
@@ -509,14 +511,14 @@ impl ChannelPage {
     }
 
     fn on_content_discovered(&mut self, ctx: &Context<Self>, cid: Cid, media: Media) -> bool {
-        if !self.identities.contains_key(&media.identity().link) {
-            let (context, _) = ctx
-                .link()
-                .context::<IPFSContext>(Callback::noop())
-                .expect("IPFS Context");
+        let ipfs = match ctx.link().context::<IPFSContext>(Callback::noop()) {
+            Some((context, _)) => context.client,
+            None => return false,
+        };
 
+        if !self.identities.contains_key(&media.identity().link) {
             spawn_local(utils::r#async::dag_get(
-                context.client,
+                ipfs,
                 media.identity().link,
                 self.identity_cb.clone(),
             ));
@@ -530,7 +532,7 @@ impl ChannelPage {
     fn on_follow(&mut self, ctx: &Context<Self>) -> bool {
         let mut list = utils::follows::get_follow_list();
 
-        if !self.following {
+        if !self.subscription {
             list.insert(ctx.props().addr.into());
         } else {
             list.remove(&ctx.props().addr.into());
@@ -538,7 +540,7 @@ impl ChannelPage {
 
         utils::follows::set_follow_list(list);
 
-        self.following = !self.following;
+        self.subscription = !self.subscription;
 
         true
     }

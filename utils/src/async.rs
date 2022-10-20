@@ -15,6 +15,7 @@ use linked_data::{
 };
 
 use serde::de::DeserializeOwned;
+
 use yew::Callback;
 
 use defluencer::Defluencer;

@@ -52,27 +52,27 @@ impl Component for FeedPage {
         #[cfg(debug_assertions)]
         info!("Feed Page Create");
 
-        let (context, _) = ctx
-            .link()
-            .context::<IPFSContext>(Callback::noop())
-            .expect("IPFS Context");
-        let ipfs = context.client;
-
         let set = utils::follows::get_follow_list();
 
         //TODO display a message if set of follow is empty
 
         let channel_cb = ctx.link().callback(Msg::Channel);
 
-        spawn_local(utils::r#async::get_channels(
-            ipfs.clone(),
-            channel_cb.clone(),
-            set.clone(),
-        ));
+        let content_cb = ctx.link().callback(Msg::Content);
+        let identity_cb = ctx.link().callback(Msg::Identity);
 
-        let sub_handles = set
-            .into_iter()
-            .map(|addr| {
+        let mut sub_handles = HashMap::with_capacity(set.len());
+
+        if let Some((context, _)) = ctx.link().context::<IPFSContext>(Callback::noop()) {
+            let ipfs = context.client;
+
+            spawn_local(utils::r#async::get_channels(
+                ipfs.clone(),
+                channel_cb.clone(),
+                set.clone(),
+            ));
+
+            for addr in set {
                 let (handle, regis) = AbortHandle::new_pair();
 
                 spawn_local(utils::r#async::channel_subscribe(
@@ -82,12 +82,9 @@ impl Component for FeedPage {
                     regis,
                 ));
 
-                (addr, handle)
-            })
-            .collect();
-
-        let content_cb = ctx.link().callback(Msg::Content);
-        let identity_cb = ctx.link().callback(Msg::Identity);
+                sub_handles.insert(addr, handle);
+            }
+        }
 
         Self {
             latest_roots: Default::default(),
@@ -139,7 +136,10 @@ impl Component for FeedPage {
             <Container>
             {
                 self.content_order.iter().rev().filter_map(|&cid| {
-                    let media = self.content.get(&cid).unwrap().clone();
+                    let media = match self.content.get(&cid) {
+                        Some(media) => media.clone(),
+                        None => return None,
+                    };
 
                     let identity = match self.identities.get(&media.identity().link) {
                         Some(id) => id.clone(),
@@ -176,17 +176,16 @@ impl FeedPage {
         cid: Cid,
         metadata: ChannelMetadata,
     ) -> bool {
+        let ipfs = match ctx.link().context::<IPFSContext>(Callback::noop()) {
+            Some((context, _)) => context.client,
+            None => return false,
+        };
+
         if self.latest_roots.get(&addr) == Some(&cid) {
             return false;
         }
 
         if let Some(index) = metadata.content_index {
-            let (context, _) = ctx
-                .link()
-                .context::<IPFSContext>(Callback::noop())
-                .expect("IPFS Context");
-            let ipfs = context.client;
-
             let (handle, regis) = AbortHandle::new_pair();
 
             spawn_local(utils::r#async::stream_content(
@@ -215,18 +214,18 @@ impl FeedPage {
     }
 
     fn on_content_discovered(&mut self, ctx: &Context<Self>, cid: Cid, media: Media) -> bool {
+        let ipfs = match ctx.link().context::<IPFSContext>(Callback::noop()) {
+            Some((context, _)) => context.client,
+            None => return false,
+        };
+
         if self.content.contains_key(&cid) {
             return false;
         }
 
         if !self.identities.contains_key(&media.identity().link) {
-            let (context, _) = ctx
-                .link()
-                .context::<IPFSContext>(Callback::noop())
-                .expect("IPFS Context");
-
             spawn_local(utils::r#async::dag_get(
-                context.client,
+                ipfs,
                 media.identity().link,
                 self.identity_cb.clone(),
             ));
@@ -235,9 +234,7 @@ impl FeedPage {
         let index = self
             .content_order
             .binary_search_by(|cid| {
-                self.content
-                    .get(&cid)
-                    .unwrap()
+                self.content[cid]
                     .user_timestamp()
                     .cmp(&media.user_timestamp())
             })
