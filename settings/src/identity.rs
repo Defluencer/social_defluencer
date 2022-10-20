@@ -151,6 +151,14 @@ impl Component for IdentitySettings {
             }
         }
 
+        let mut name = String::new();
+
+        if let Some((context, _)) = ctx.link().context::<Web3Context>(Callback::noop()) {
+            if let Some(ens_name) = context.name {
+                name = ens_name;
+            }
+        }
+
         Self {
             modal: Modals::None,
             create_modal_cb,
@@ -164,7 +172,7 @@ impl Component for IdentitySettings {
             current_id,
             identity_map: HashMap::new(),
 
-            name: String::new(),
+            name,
             name_cb,
 
             channel: false,
@@ -256,7 +264,7 @@ impl IdentitySettings {
                 <section class="modal-card-body">
                     <Field label="Name" >
                         <Control>
-                            <Input name="name" value="" update={self.name_cb.clone()} />
+                            <Input name="name" value={self.name.clone()} update={self.name_cb.clone()} />
                         </Control>
                     </Field>
                     <Field label="Biography" help={"(optional)"} >
