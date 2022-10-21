@@ -169,7 +169,7 @@ pub fn pure_content(props: &ContentProps) -> Html {
                 <Level>
                     <LevelLeft>
                         <LevelItem>
-                            <CommentButton {cid} >
+                            <CommentButton {cid} identity={identity.clone()} >
                                 <Thumbnail key={cid.to_string()} {cid} media={media.clone()} identity={identity.clone()} />
                             </CommentButton>
                         </LevelItem>

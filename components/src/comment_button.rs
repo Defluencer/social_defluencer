@@ -10,11 +10,15 @@ use defluencer::{
 
 use gloo_console::error;
 
-use linked_data::comments::Comment;
+use ipfs_api::IpfsService;
+use linked_data::{
+    channel::ChannelMetadata, comments::Comment, identity::Identity, types::IPNSAddress,
+};
 
 use utils::{
     commentary::CommentaryContext,
     defluencer::{ChannelContext, UserContext},
+    ipfs::IPFSContext,
 };
 
 use ybc::{Box, Button, Control, Field, TextArea};
@@ -25,6 +29,8 @@ use yew::{platform::spawn_local, prelude::*};
 pub struct Props {
     /// Signed link to media Cid
     pub cid: Cid,
+
+    pub identity: Identity,
 
     #[prop_or_default]
     pub children: Children,
@@ -171,7 +177,11 @@ impl CommentButton {
             spawn_local(add_to_channel(context.channel, cid));
         }
 
-        //TODO send comment cid to original channel for aggregation
+        if let Some((context, _)) = ctx.link().context::<IPFSContext>(Callback::noop()) {
+            if let Some(addr) = ctx.props().identity.ipns_addr {
+                spawn_local(send_comment(context.client, addr, cid));
+            }
+        }
 
         true
     }
@@ -199,5 +209,29 @@ async fn publish_comment(
 async fn add_to_channel(channel: Channel<LocalUpdater>, cid: Cid) {
     if let Err(e) = channel.add_comment(cid).await {
         error!(&format!("{:#?}", e))
+    }
+}
+
+async fn send_comment(ipfs: IpfsService, addr: IPNSAddress, cid: Cid) {
+    let root = match ipfs.name_resolve(addr.into()).await {
+        Ok(cid) => cid,
+        Err(e) => {
+            error!(&format!("{:#?}", e));
+            return;
+        }
+    };
+
+    let meta = match ipfs.dag_get::<&str, ChannelMetadata>(root, None).await {
+        Ok(meta) => meta,
+        Err(e) => {
+            error!(&format!("{:#?}", e));
+            return;
+        }
+    };
+
+    if let Some(topic) = meta.agregation_channel {
+        if let Err(e) = ipfs.pubsub_pub(topic, cid.to_bytes()).await {
+            error!(&format!("{:#?}", e));
+        }
     }
 }
