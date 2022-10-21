@@ -69,10 +69,7 @@ pub fn pure_thumbnail(props: &ThumbnailProps) -> Html {
                 </LevelLeft>
                 <LevelRight>
                     <LevelItem>
-                        <span class="icon-text">
-                            <span class="icon"><i class="fa-solid fa-fingerprint"></i></span>
-                            <span><small>{cid.to_string()}</small></span>
-                        </span>
+                        <small>{format!("ipfs://{}", cid)}</small>
                     </LevelItem>
                 </LevelRight>
             </Level>
@@ -123,10 +120,7 @@ pub fn pure_thumbnail(props: &ThumbnailProps) -> Html {
                 </LevelLeft>
                 <LevelRight>
                     <LevelItem>
-                        <span class="icon-text">
-                            <span class="icon"><i class="fa-solid fa-fingerprint"></i></span>
-                            <span><small>{cid.to_string()}</small></span>
-                        </span>
+                        <small>{format!("ipfs://{}", cid)}</small>
                     </LevelItem>
                 </LevelRight>
             </Level>
@@ -169,10 +163,7 @@ pub fn pure_thumbnail(props: &ThumbnailProps) -> Html {
                 </LevelLeft>
                 <LevelRight>
                     <LevelItem>
-                        <span class="icon-text">
-                            <span class="icon"><i class="fa-solid fa-fingerprint"></i></span>
-                            <span><small>{cid.to_string()}</small></span>
-                        </span>
+                        <small>{format!("ipfs://{}", cid)}</small>
                     </LevelItem>
                 </LevelRight>
             </Level>

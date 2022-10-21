@@ -22,8 +22,8 @@ use utils::{
 use web_sys::File as SysFile;
 
 use ybc::{
-    Button, ButtonRouter, Checkbox, Container, Control, Field, File, Input, Level, LevelItem,
-    LevelLeft, LevelRight, Section, Subtitle, TextArea,
+    Block, Button, ButtonRouter, Checkbox, Container, Control, Field, File, Input, Level,
+    LevelItem, LevelLeft, LevelRight, Section, Subtitle, TextArea,
 };
 
 use yew::{platform::spawn_local, prelude::*};
@@ -227,7 +227,18 @@ impl Component for IdentitySettings {
                 { self.render_create_modal() }
                 { self.render_import_modal() }
                 { self.render_delete_modal() }
+                <Block>
+                <small>
+                    {"To be searchable, add an "}
+                    <a href="https://app.ens.domains" >
+                    <u>{"ENS"}</u>
+                    </a>
+                    {" record with your channel IPNS address (ipns://bafzaajaiaejc...) as content hash."}
+                </small>
+                </Block>
+                <Block>
                 { self.render_identities(ctx) }
+                </Block>
                 <Level>
                     <LevelLeft>
                         <LevelItem>

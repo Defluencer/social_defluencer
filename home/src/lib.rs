@@ -93,9 +93,11 @@ pub fn home_page() -> Html {
                             <br/>
                             {"A channel can be created at the same time and is used to aggregate content. This is optional but most people like to have a personnal channel."}
                             <br/>
-                            {"You can find channels by listing the followees of any channel. If you have a channel, don't forget to add channels you like to your social web."}
+                            {"You can then publish content, share, comment and live stream but only using the Defluencer CLI."}
                             <br/>
-                            {"Lastly, you can publish content, share and comment. Live streams can only be done using the Defluencer CLI."}
+                            {"Find new channels by listing the followees of any channel you like or search ENS. Don't forget to add your favorite channels to your social web."}
+                            <br/>
+                            {"N.B. Comment aggregation is done by crawling the social web. You will always see the comments of people closer to you first."}
                         </p>
                         <p>
                             <Title size={HeaderSize::Is5} >

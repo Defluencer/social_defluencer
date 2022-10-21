@@ -12,6 +12,7 @@ pub mod chat;
 pub mod comment_button;
 pub mod markdown;
 pub mod pure;
+pub mod search_bar;
 pub mod share_button;
 pub mod video_player;
 

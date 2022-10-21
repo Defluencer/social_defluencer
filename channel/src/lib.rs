@@ -12,7 +12,10 @@ use linked_data::{identity::Identity, types::IPNSAddress};
 
 use std::collections::{HashMap, HashSet, VecDeque};
 
-use components::{pure::{DagExplorer, Followee, IPFSImage, NavigationBar, Searching, Thumbnail}, Route};
+use components::{
+    pure::{DagExplorer, Followee, IPFSImage, NavigationBar, Searching, Thumbnail},
+    Route,
+};
 
 use futures_util::stream::AbortHandle;
 
@@ -304,10 +307,7 @@ impl ChannelPage {
                         <LevelRight>
                         if let Some(addr) = identity.ipns_addr {
                             <LevelItem>
-                                <span class="icon-text">
-                                    <span class="icon"><i class="fa-solid fa-fingerprint"></i></span>
-                                    <span><small>{addr.to_string()}</small></span>
-                                </span>
+                                <small>{format!("ipns://{}", addr)}</small>
                             </LevelItem>
                         }
                         </LevelRight>
