@@ -27,6 +27,8 @@ pub struct ThumbnailProps {
     pub media: Media,
 
     pub identity: Identity,
+
+    pub shared_by: Option<Identity>,
 }
 
 #[function_component(Thumbnail)]
@@ -35,6 +37,7 @@ pub fn pure_thumbnail(props: &ThumbnailProps) -> Html {
         cid,
         media,
         identity,
+        shared_by,
     } = props;
     let cid = *cid;
 
@@ -46,6 +49,14 @@ pub fn pure_thumbnail(props: &ThumbnailProps) -> Html {
             <>
             <Level>
                 <LevelLeft>
+                    if let Some(sharer) = shared_by {
+                    <LevelItem>
+                        <span class="icon-text">
+                            <span><strong>{ &sharer.name }</strong></span>
+                            <span class="icon"><i class="fa-solid fa-retweet"></i></span>
+                        </span>
+                    </LevelItem>
+                    }
                     <LevelItem>
                         <span class="icon-text">
                             <span class="icon"><i class="fas fa-user"></i></span>
@@ -60,16 +71,13 @@ pub fn pure_thumbnail(props: &ThumbnailProps) -> Html {
                             </span>
                         </LevelItem>
                     }
+                </LevelLeft>
+                <LevelRight>
                     <LevelItem>
                         <span class="icon-text">
                             <span class="icon"><i class="fas fa-clock"></i></span>
                             <span><small>{ dt }</small></span>
                         </span>
-                    </LevelItem>
-                </LevelLeft>
-                <LevelRight>
-                    <LevelItem>
-                        <small>{format!("ipfs://{}", cid)}</small>
                     </LevelItem>
                 </LevelRight>
             </Level>
@@ -89,6 +97,14 @@ pub fn pure_thumbnail(props: &ThumbnailProps) -> Html {
             <>
             <Level>
                 <LevelLeft>
+                    if let Some(sharer) = shared_by {
+                    <LevelItem>
+                        <span class="icon-text">
+                            <span><strong>{ &sharer.name }</strong></span>
+                            <span class="icon"><i class="fa-solid fa-retweet"></i></span>
+                        </span>
+                    </LevelItem>
+                    }
                     <LevelItem>
                         <span class="icon-text">
                             <span class="icon"><i class="fas fa-user"></i></span>
@@ -111,16 +127,13 @@ pub fn pure_thumbnail(props: &ThumbnailProps) -> Html {
                             html!{}
                         }
                     }
+                </LevelLeft>
+                <LevelRight>
                     <LevelItem>
                         <span class="icon-text">
                             <span class="icon"><i class="fas fa-clock"></i></span>
                             <span><small>{ dt }</small></span>
                         </span>
-                    </LevelItem>
-                </LevelLeft>
-                <LevelRight>
-                    <LevelItem>
-                        <small>{format!("ipfs://{}", cid)}</small>
                     </LevelItem>
                 </LevelRight>
             </Level>
@@ -142,6 +155,14 @@ pub fn pure_thumbnail(props: &ThumbnailProps) -> Html {
             <>
             <Level>
                 <LevelLeft>
+                    if let Some(sharer) = shared_by {
+                    <LevelItem>
+                        <span class="icon-text">
+                            <span><strong>{ &sharer.name }</strong></span>
+                            <span class="icon"><i class="fa-solid fa-retweet"></i></span>
+                        </span>
+                    </LevelItem>
+                    }
                     <LevelItem>
                         <span class="icon-text">
                             <span class="icon"><i class="fas fa-user"></i></span>
@@ -154,16 +175,13 @@ pub fn pure_thumbnail(props: &ThumbnailProps) -> Html {
                             <span><small>{ format!("{} Characters", count.characters) }</small></span>
                         </span>
                     </LevelItem>
+                </LevelLeft>
+                <LevelRight>
                     <LevelItem>
                         <span class="icon-text">
                             <span class="icon"><i class="fas fa-clock"></i></span>
                             <span><small>{ dt }</small></span>
                         </span>
-                    </LevelItem>
-                </LevelLeft>
-                <LevelRight>
-                    <LevelItem>
-                        <small>{format!("ipfs://{}", cid)}</small>
                     </LevelItem>
                 </LevelRight>
             </Level>

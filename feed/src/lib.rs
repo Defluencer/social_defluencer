@@ -15,13 +15,13 @@ use linked_data::{channel::ChannelMetadata, identity::Identity, media::Media, ty
 
 use utils::ipfs::IPFSContext;
 
-use ybc::{Container, Section};
+use ybc::{Container, HeaderSize, Section, Title};
 
 use yew::{platform::spawn_local, prelude::*};
 
 /// social.defluencer.eth/#/feed/
 ///
-/// The Personal Feed Page display all followed channel content
+/// The Personal Feed Page display all subcribed channel content
 pub struct FeedPage {
     latest_roots: HashMap<IPNSAddress, Cid>,
 
@@ -52,9 +52,7 @@ impl Component for FeedPage {
         #[cfg(debug_assertions)]
         info!("Feed Page Create");
 
-        let set = utils::follows::get_follow_list();
-
-        //TODO display a message if set of follow is empty
+        let set = utils::subscriptions::get_sub_list();
 
         let channel_cb = ctx.link().callback(Msg::Channel);
 
@@ -115,6 +113,21 @@ impl Component for FeedPage {
     fn view(&self, _ctx: &Context<Self>) -> Html {
         #[cfg(debug_assertions)]
         info!("Feed Page View");
+
+        if self.sub_handles.is_empty() {
+            return html! {
+            <>
+            <NavigationBar />
+            <Section>
+                <Container>
+                    <Title classes={classes!("has-text-centered")} size={HeaderSize::Is5} >
+                        {"Subscribe to your favorite channel to build your content feed."}
+                    </Title>
+                </Container>
+            </Section>
+            </>
+            };
+        }
 
         if self.content_order.is_empty() {
             return html! {

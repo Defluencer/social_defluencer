@@ -3,9 +3,9 @@
 pub mod r#async;
 pub mod commentary;
 pub mod defluencer;
-pub mod follows;
 pub mod identity;
 pub mod ipfs;
+pub mod subscriptions;
 pub mod web3;
 
 use chrono::{DateTime, Local, TimeZone, Utc};

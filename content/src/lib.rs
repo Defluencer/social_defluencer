@@ -8,8 +8,8 @@ use futures_util::{
 };
 
 use utils::{
-    commentary::CommentaryContext, defluencer::ChannelContext, follows::get_follow_list,
-    ipfs::IPFSContext, timestamp_to_datetime,
+    commentary::CommentaryContext, defluencer::ChannelContext, ipfs::IPFSContext,
+    subscriptions::get_sub_list, timestamp_to_datetime,
 };
 
 use yew::{platform::spawn_local, prelude::*};
@@ -76,10 +76,10 @@ impl Component for ContentPage {
 
         let identity_cb = ctx.link().callback(Msg::Identity);
 
-        let mut follows = get_follow_list();
+        let mut subcriptions = get_sub_list();
 
         if let Some((context, _)) = ctx.link().context::<ChannelContext>(Callback::noop()) {
-            follows.insert(context.channel.get_address());
+            subcriptions.insert(context.channel.get_address());
         }
 
         let crawl_cb = ctx.link().callback(Msg::Crawl);
@@ -100,7 +100,7 @@ impl Component for ContentPage {
                 ctx.props().cid,
             ));
 
-            spawn_local(web_crawl(ipfs, follows, crawl_cb, regis));
+            spawn_local(web_crawl(ipfs, subcriptions, crawl_cb, regis));
         }
 
         Self {

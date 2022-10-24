@@ -14,7 +14,7 @@ use crate::{search_bar::SearchBar, Route};
 pub fn navbar() -> Html {
     let channel_context = use_context::<ChannelContext>();
 
-    let follow_list = utils::follows::get_follow_list();
+    let subscriptions = utils::subscriptions::get_sub_list();
 
     let navbrand = html! {
         <Link<Route> classes="navbar-item" to={Route::Home}>
@@ -35,7 +35,7 @@ pub fn navbar() -> Html {
 
     let navstart = html! {
         <>
-            if !follow_list.is_empty(){
+            if !subscriptions.is_empty(){
             <Link<Route> classes="navbar-item" to={Route::Feed}>
                 <span class="icon-text">
                     <span class="icon"><i class="fas fa-broadcast-tower"></i></span>

@@ -11,7 +11,7 @@ use linked_data::types::IPNSAddress;
 const FOLLOW_LIST: &str = "follow_list";
 
 /// Get addresses of all followees
-pub fn get_follow_list() -> HashSet<IPNSAddress> {
+pub fn get_sub_list() -> HashSet<IPNSAddress> {
     match LocalStorage::get(FOLLOW_LIST) {
         Ok(list) => return list,
         Err(e) => error!(&format!("{:?}", e)),
@@ -21,7 +21,7 @@ pub fn get_follow_list() -> HashSet<IPNSAddress> {
 }
 
 /// Set new list of followees
-pub fn set_follow_list(list: HashSet<IPNSAddress>) {
+pub fn set_sub_list(list: HashSet<IPNSAddress>) {
     if let Err(e) = LocalStorage::set(FOLLOW_LIST, list) {
         error!(&format!("{:?}", e));
     }

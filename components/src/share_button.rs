@@ -70,7 +70,7 @@ impl Component for ShareButton {
         <>
         <Button classes={classes!("is-outlined")} onclick={self.modal_cb.clone()} disabled={self.channel.is_none()} >
             <span class="icon">
-                <i class="fa-solid fa-reply"></i>
+                <i class="fa-solid fa-retweet"></i>
             </span>
         </Button>
         { self.render_modal(ctx) }

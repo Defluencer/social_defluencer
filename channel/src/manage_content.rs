@@ -1,5 +1,7 @@
 #![cfg(target_arch = "wasm32")]
 
+use std::collections::HashSet;
+
 use cid::Cid;
 
 use defluencer::{
@@ -8,12 +10,20 @@ use defluencer::{
     user::User,
 };
 
+use futures_util::{stream::FuturesUnordered, StreamExt};
+
 use gloo_console::error;
 
-use linked_data::types::IPNSAddress;
-use utils::defluencer::{ChannelContext, UserContext};
+use ipfs_api::IpfsService;
 
-use ybc::{Button, Buttons, Control, Field, File, Input, TextArea};
+use linked_data::types::IPNSAddress;
+
+use utils::{
+    defluencer::{ChannelContext, UserContext},
+    ipfs::IPFSContext,
+};
+
+use ybc::{Button, Buttons, Control, Field, File, Input, Tag, Tags, TextArea};
 
 use yew::{platform::spawn_local, prelude::*};
 
@@ -30,8 +40,9 @@ pub struct ManageContent {
     post_modal_cb: Callback<MouseEvent>,
     article_modal_cb: Callback<MouseEvent>,
     follow_modal_cb: Callback<MouseEvent>,
-    modal: Modals,
     close_modal_cb: Callback<MouseEvent>,
+
+    modal: Modals,
 
     create_cb: Callback<MouseEvent>,
 
@@ -52,6 +63,9 @@ pub struct ManageContent {
 
     word_count: u64,
     word_cb: Callback<String>,
+
+    tags: HashSet<String>,
+    tag_cb: Callback<String>,
 
     remove_modal_cb: Callback<MouseEvent>,
 
@@ -79,6 +93,8 @@ pub enum Msg {
     FormCid(String),
     FormIPNS(String),
     WordCount(String),
+    Tag(String),
+    RemoveTag(String),
     Result(Cid),
 }
 
@@ -101,6 +117,7 @@ impl Component for ManageContent {
         let form_cid_cb = ctx.link().callback(Msg::FormCid);
         let form_ipns_cb = ctx.link().callback(Msg::FormIPNS);
         let word_cb = ctx.link().callback(Msg::WordCount);
+        let tag_cb = ctx.link().callback(Msg::Tag);
 
         Self {
             video_modal_cb,
@@ -128,6 +145,9 @@ impl Component for ManageContent {
             word_count: 0,
             word_cb,
 
+            tags: Default::default(),
+            tag_cb,
+
             create_cb,
 
             remove_modal_cb,
@@ -148,14 +168,16 @@ impl Component for ManageContent {
             Msg::FormCid(cid) => self.on_form_cid(&cid),
             Msg::FormIPNS(addr) => self.on_form_ipns(&addr),
             Msg::WordCount(count) => self.on_word_count(count),
+            Msg::Tag(tag) => self.on_tag(tag),
+            Msg::RemoveTag(tag) => self.tags.remove(&tag),
             Msg::Result(_) => self.on_result(),
         }
     }
 
-    fn view(&self, _ctx: &Context<Self>) -> Html {
+    fn view(&self, ctx: &Context<Self>) -> Html {
         html! {
         <>
-        { self.render_modal() }
+        { self.render_modal(ctx) }
         <Buttons classes={classes!("are-normal", "is-centered", "has-addons")}>
             <Button  onclick={self.article_modal_cb.clone()} >
                 <span class="icon-text">
@@ -194,7 +216,7 @@ impl Component for ManageContent {
 }
 
 impl ManageContent {
-    fn render_modal(&self) -> Html {
+    fn render_modal(&self, ctx: &Context<Self>) -> Html {
         let modal_card_body = match self.modal {
             Modals::MicroPost => html! {
             <section class="modal-card-body">
@@ -203,6 +225,7 @@ impl ManageContent {
                         <TextArea name="text" value="" update={self.title_cb.clone()} placeholder={"Text here..."} rows={4} fixed_size={true} />
                     </Control>
                 </Field>
+                {self.render_tags(ctx)}
             </section>
                 },
             Modals::Article => html! {
@@ -227,6 +250,7 @@ impl ManageContent {
                         <Input name="word_count" value="" update={self.word_cb.clone()} />
                     </Control>
                 </Field>
+                {self.render_tags(ctx)}
             </section>
                 },
             Modals::Video => html! {
@@ -246,6 +270,7 @@ impl ManageContent {
                         <File name="image" files={self.images.clone()} update={self.image_cb.clone()} selector_label={"Choose an image..."} selector_icon={html!{<i class="fas fa-upload"></i>}} has_name={Some("image.jpg")} fullwidth=true />
                     </Control>
                 </Field>
+                {self.render_tags(ctx)}
             </section>
             },
             Modals::Follow => html! {
@@ -294,7 +319,52 @@ impl ManageContent {
         }
     }
 
+    fn render_tags(&self, ctx: &Context<Self>) -> Html {
+        let content = self
+            .tags
+            .iter()
+            .map(|tag| {
+                let rev_tag = tag.clone();
+                //WTF is this double clone why?
+                let onclick = ctx.link().callback(move |_: MouseEvent| {
+                    let tag = rev_tag.clone();
+
+                    Msg::RemoveTag(tag)
+                });
+
+                html! {
+                <Control>
+                    <Tags has_addons=true >
+                        <Tag>
+                            {tag.as_str()}
+                        </Tag>
+                        <Tag {onclick} delete=true />
+                    </Tags>
+                </Control>
+                }
+            })
+            .collect::<Html>();
+
+        html! {
+        <>
+        <Field label={"Tags"} help={"Adding a tag publish your content to the pubsub channel of the same name."} >
+            <Control>
+                <Input name="tagger" value="" update={self.tag_cb.clone()} />
+            </Control>
+        </Field>
+        <Field grouped=true multiline=true >
+            {content}
+        </Field>
+        </>
+        }
+    }
+
     fn on_manage(&mut self, ctx: &Context<Self>) -> bool {
+        let ipfs = match ctx.link().context::<IPFSContext>(Callback::noop()) {
+            Some((context, _)) => context.client,
+            None => return false,
+        };
+
         let user = match ctx.link().context::<UserContext>(Callback::noop()) {
             Some((context, _)) => context.user,
             None => return false,
@@ -308,27 +378,33 @@ impl ManageContent {
         match self.modal {
             Modals::MicroPost => {
                 spawn_local(create_micro_post(
+                    ipfs,
                     user,
                     channel,
                     self.title.clone(),
+                    self.tags.clone(),
                     ctx.link().callback(Msg::Result),
                 ));
             }
             Modals::Article => spawn_local(create_article(
+                ipfs,
                 user,
                 channel,
                 self.title.clone(),
                 self.images.pop(),
                 self.markdowns.pop(),
                 self.word_count,
+                self.tags.clone(),
                 ctx.link().callback(Msg::Result),
             )),
             Modals::Video => spawn_local(create_video_post(
+                ipfs,
                 user,
                 channel,
                 self.title.clone(),
                 self.form_cid,
                 self.images.pop(),
+                self.tags.clone(),
                 ctx.link().callback(Msg::Result),
             )),
             Modals::Remove => match IPNSAddress::try_from(self.form_cid) {
@@ -361,6 +437,9 @@ impl ManageContent {
         self.disabled = true;
 
         self.modal = modal;
+
+        //should reset all data?
+        self.tags.clear();
 
         true
     }
@@ -465,12 +544,36 @@ impl ManageContent {
 
         true
     }
+
+    fn on_tag(&mut self, tag: String) -> bool {
+        if !tag.ends_with(' ') {
+            return false;
+        }
+
+        let tags: Vec<&str> = tag.split(' ').collect();
+
+        let mut update = false;
+
+        for tag in tags {
+            if tag.is_empty() || tag == " " {
+                continue;
+            }
+
+            if self.tags.insert(tag.to_owned()) {
+                update = true;
+            }
+        }
+
+        update
+    }
 }
 
 async fn create_micro_post(
+    ipfs: IpfsService,
     user: User<EthereumSigner>,
     channel: Channel<LocalUpdater>,
     text: String,
+    tags: HashSet<String>,
     callback: Callback<Cid>,
 ) {
     let cid = match user.create_micro_blog_post(text, false).await {
@@ -481,6 +584,8 @@ async fn create_micro_post(
         }
     };
 
+    publish_tags(ipfs, cid, tags).await;
+
     match channel.add_content(cid).await {
         Ok(cid) => callback.emit(cid),
         Err(e) => error!(&format!("{:#?}", e)),
@@ -488,11 +593,13 @@ async fn create_micro_post(
 }
 
 async fn create_video_post(
+    ipfs: IpfsService,
     user: User<EthereumSigner>,
     channel: Channel<LocalUpdater>,
     title: String,
     cid: Cid,
     image: Option<SysFile>,
+    tags: HashSet<String>,
     callback: Callback<Cid>,
 ) {
     let cid = match user.create_video_post(title, cid, image, false).await {
@@ -503,6 +610,8 @@ async fn create_video_post(
         }
     };
 
+    publish_tags(ipfs, cid, tags).await;
+
     match channel.add_content(cid).await {
         Ok(cid) => callback.emit(cid),
         Err(e) => error!(&format!("{:#?}", e)),
@@ -510,12 +619,14 @@ async fn create_video_post(
 }
 
 async fn create_article(
+    ipfs: IpfsService,
     user: User<EthereumSigner>,
     channel: Channel<LocalUpdater>,
     title: String,
     image: Option<SysFile>,
     markdown: Option<SysFile>,
     count: u64,
+    tags: HashSet<String>,
     callback: Callback<Cid>,
 ) {
     let markdown = match markdown {
@@ -536,9 +647,24 @@ async fn create_article(
         }
     };
 
+    publish_tags(ipfs, cid, tags).await;
+
     match channel.add_content(cid).await {
         Ok(cid) => callback.emit(cid),
         Err(e) => error!(&format!("{:#?}", e)),
+    }
+}
+
+async fn publish_tags(ipfs: IpfsService, cid: Cid, tags: HashSet<String>) {
+    let mut pub_pool: FuturesUnordered<_> = tags
+        .into_iter()
+        .map(|topic| ipfs.pubsub_pub(topic, cid.to_bytes()))
+        .collect();
+
+    while let Some(result) = pub_pool.next().await {
+        if let Err(e) = result {
+            error!(&format!("{:#?}", e));
+        }
     }
 }
 

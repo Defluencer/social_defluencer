@@ -50,11 +50,13 @@ pub struct Props {
 ///
 /// A specific channel page
 pub struct ChannelPage {
+    /// This channel address
     addr: IPNSAddress,
 
     sub_handle: AbortHandle,
     stream_handle: Option<AbortHandle>,
 
+    /// This channel metadata
     metadata: Option<ChannelMetadata>,
     update_cb: Callback<(IPNSAddress, Cid, ChannelMetadata)>,
 
@@ -64,7 +66,8 @@ pub struct ChannelPage {
     identity_cb: Callback<(Cid, Identity)>,
     identities: HashMap<Cid, Identity>,
 
-    own_channel: bool,
+    /// Is the user this channel's owner?
+    channel_owner: bool,
 
     subscribe_cb: Callback<MouseEvent>,
     subscription: bool,
@@ -88,7 +91,7 @@ pub enum Msg {
     Update((IPNSAddress, Cid, ChannelMetadata)),
     Content((Cid, Media)),
     Identity((Cid, Identity)),
-    Follow,
+    Subscribe,
     Filter(Filter),
     Followees(HashMap<Cid, Identity>),
 }
@@ -104,7 +107,7 @@ impl Component for ChannelPage {
         let update_cb = ctx.link().callback(Msg::Update);
         let content_cb = ctx.link().callback(Msg::Content);
         let identity_cb = ctx.link().callback(Msg::Identity);
-        let follow_cb = ctx.link().callback(|_| Msg::Follow);
+        let subscribe_cb = ctx.link().callback(|_| Msg::Subscribe);
         let followees_cb = ctx.link().callback(Msg::Followees);
 
         let addr = ctx.props().addr;
@@ -141,7 +144,7 @@ impl Component for ChannelPage {
         }
 
         let following = {
-            let list = utils::follows::get_follow_list();
+            let list = utils::subscriptions::get_sub_list();
 
             list.contains(&addr)
         };
@@ -161,9 +164,9 @@ impl Component for ChannelPage {
             identities: Default::default(),
             identity_cb,
 
-            own_channel,
+            channel_owner: own_channel,
 
-            subscribe_cb: follow_cb,
+            subscribe_cb,
             subscription: following,
 
             filter: Filter::None,
@@ -181,7 +184,7 @@ impl Component for ChannelPage {
             Msg::Update((_, _, metadata)) => self.on_channel_update(ctx, metadata),
             Msg::Content((cid, media)) => self.on_content_discovered(ctx, cid, media),
             Msg::Identity((cid, identity)) => self.identities.insert(cid, identity).is_none(),
-            Msg::Follow => self.on_follow(ctx),
+            Msg::Subscribe => self.on_subscribe(ctx),
             Msg::Filter(filter) => self.on_filtering(filter),
             Msg::Followees(followees) => self.on_followees(followees),
         }
@@ -201,7 +204,7 @@ impl Component for ChannelPage {
             self.metadata.take();
             self.content.clear();
             self.sub_handle.abort();
-            self.own_channel = false;
+            self.channel_owner = false;
             self.filter = Filter::None;
             self.followees.clear();
 
@@ -227,11 +230,11 @@ impl Component for ChannelPage {
 
             if let Some((context, _)) = ctx.link().context::<ChannelContext>(Callback::noop()) {
                 if context.channel.get_address() == self.addr {
-                    self.own_channel = true;
+                    self.channel_owner = true;
                 }
             }
 
-            self.subscription = utils::follows::get_follow_list().contains(&self.addr);
+            self.subscription = utils::subscriptions::get_sub_list().contains(&self.addr);
 
             return true;
         }
@@ -335,7 +338,7 @@ impl ChannelPage {
                     </MediaRight>
                 </ybc::Media>
             </Block>
-            if self.own_channel
+            if self.channel_owner
             {
                 <ManageContent addr={ctx.props().addr} />
             }
@@ -440,9 +443,20 @@ impl ChannelPage {
                     None => return None,
                 };
 
+                let mut shared_by = None;
+
+                if let Some(channel) = &self.metadata {
+                    if channel.identity != media.identity() {
+                        shared_by = match self.identities.get(&channel.identity.link) {
+                            Some(id) => Some(id.clone()),
+                            None => None,
+                        };
+                    }
+                }
+
                 return Some(html! {
                 <Block>
-                    <Thumbnail key={cid.to_string()} {cid} {media} {identity} />
+                    <Thumbnail key={cid.to_string()} {cid} {media} {identity} {shared_by} />
                 </Block>
                 });
             })
@@ -529,8 +543,8 @@ impl ChannelPage {
         true
     }
 
-    fn on_follow(&mut self, ctx: &Context<Self>) -> bool {
-        let mut list = utils::follows::get_follow_list();
+    fn on_subscribe(&mut self, ctx: &Context<Self>) -> bool {
+        let mut list = utils::subscriptions::get_sub_list();
 
         if !self.subscription {
             list.insert(ctx.props().addr.into());
@@ -538,7 +552,7 @@ impl ChannelPage {
             list.remove(&ctx.props().addr.into());
         }
 
-        utils::follows::set_follow_list(list);
+        utils::subscriptions::set_sub_list(list);
 
         self.subscription = !self.subscription;
 
