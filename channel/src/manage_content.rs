@@ -576,7 +576,7 @@ async fn create_micro_post(
     tags: HashSet<String>,
     callback: Callback<Cid>,
 ) {
-    let cid = match user.create_micro_blog_post(text, false).await {
+    let cid = match user.create_micro_blog_post(text, None, false).await {
         Ok((cid, _)) => cid,
         Err(e) => {
             error!(&format!("{:#?}", e));

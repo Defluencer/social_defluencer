@@ -122,7 +122,7 @@ pub enum Msg {
     SetupNode(Setup),
     Append((Vec<u8>, Vec<u8>)),
     AppendVideo(Vec<u8>),
-    PubSub((Cid, Vec<u8>)),
+    PubSub((PeerId, Vec<u8>)),
 }
 
 impl Component for VideoPlayer {
@@ -323,7 +323,7 @@ impl VideoPlayer {
     }
 
     /// Callback when GossipSub receive an update.
-    fn on_pubsub_update(&mut self, ctx: &Context<Self>, from: Cid, data: Vec<u8>) {
+    fn on_pubsub_update(&mut self, ctx: &Context<Self>, peer_id: PeerId, data: Vec<u8>) {
         #[cfg(debug_assertions)]
         info!("PubSub Message Received");
 
@@ -336,15 +336,7 @@ impl VideoPlayer {
         };
 
         #[cfg(debug_assertions)]
-        info!(&format!("Sender => {}", from));
-
-        let peer_id = match PeerId::try_from(from) {
-            Ok(peer) => peer,
-            Err(e) => {
-                error!(&format!("{:#?}", e));
-                return;
-            }
-        };
+        info!(&format!("Sender => {}", peer_id));
 
         if peer_id != live.settings.peer_id {
             #[cfg(debug_assertions)]

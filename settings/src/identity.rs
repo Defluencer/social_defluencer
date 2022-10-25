@@ -794,11 +794,11 @@ async fn delete_channel(ipfs: IpfsService, key: String) {
     };
 
     let addr = match key_list.get(&key) {
-        Some(cid) => cid,
+        Some(addr) => *addr,
         None => return,
     };
 
-    let cid = match ipfs.name_resolve(addr.into()).await {
+    let cid = match ipfs.name_resolve(addr).await {
         Ok(cid) => cid,
         Err(e) => {
             error!(&format!("{:?}", e));

@@ -39,7 +39,7 @@ pub struct ChatDisplay {
 }
 
 pub enum Msg {
-    PubSub((Cid, Vec<u8>)),
+    PubSub((PeerId, Vec<u8>)),
     Verification((Cid, ChatInfo)),
 }
 
@@ -113,18 +113,10 @@ impl Component for ChatDisplay {
 
 impl ChatDisplay {
     /// Callback when a message is received
-    fn on_message(&mut self, ctx: &Context<Self>, from: Cid, data: Vec<u8>) -> bool {
+    fn on_message(&mut self, ctx: &Context<Self>, peer_id: PeerId, data: Vec<u8>) -> bool {
         let ipfs = match ctx.link().context::<IPFSContext>(Callback::noop()) {
             Some((context, _)) => context.client,
             None => return false,
-        };
-
-        let peer_id = match PeerId::try_from(from) {
-            Ok(peer) => peer,
-            Err(e) => {
-                error!(&format!("{:#?}", e));
-                return false;
-            }
         };
 
         let msg = match serde_json::from_slice::<ChatMessage>(&data) {
