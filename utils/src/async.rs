@@ -74,7 +74,7 @@ pub async fn channel_subscribe(
     addr: IPNSAddress,
     regis: AbortRegistration,
 ) {
-    let defluencer = Defluencer::new(ipfs.clone());
+    let defluencer = Defluencer::from(ipfs.clone());
 
     let stream = defluencer
         .subscribe_channel_updates(addr)
@@ -112,7 +112,7 @@ pub async fn stream_content(
     index: IPLDLink,
     regis: AbortRegistration,
 ) {
-    let defluencer = Defluencer::new(ipfs.clone());
+    let defluencer = Defluencer::from(ipfs.clone());
 
     let stream = defluencer
         .stream_content_rev_chrono(index)

@@ -2,7 +2,7 @@
 
 use cid::Cid;
 
-use linked_data::comments::Comment;
+use linked_data::media::comments::Comment;
 
 use yew::Callback;
 

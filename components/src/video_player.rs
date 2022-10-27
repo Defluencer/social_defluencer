@@ -17,7 +17,7 @@ use gloo_console::info;
 use ipfs_api::IpfsService;
 
 use linked_data::{
-    live::LiveSettings,
+    channel::live::LiveSettings,
     media::video::{Setup, Track, Video},
     types::PeerId,
 };

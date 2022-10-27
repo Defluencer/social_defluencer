@@ -12,7 +12,7 @@ use gloo_console::error;
 
 use ipfs_api::IpfsService;
 use linked_data::{
-    channel::ChannelMetadata, comments::Comment, identity::Identity, types::IPNSAddress,
+    channel::ChannelMetadata, identity::Identity, media::comments::Comment, types::IPNSAddress,
 };
 
 use utils::{

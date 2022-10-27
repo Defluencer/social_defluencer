@@ -583,7 +583,7 @@ async fn get_followees(
     metadata: ChannelMetadata,
     callback: Callback<HashMap<Cid, Identity>>,
 ) {
-    let defluencer = Defluencer::new(ipfs);
+    let defluencer = Defluencer::from(ipfs);
 
     let hash_map = defluencer
         .followees_identity(std::iter::once(&metadata))

@@ -27,7 +27,7 @@ use ipfs_api::IpfsService;
 
 use defluencer::{crypto::signed_link::SignedLink, Defluencer};
 
-use linked_data::{comments::Comment, identity::Identity, media::Media, types::IPNSAddress};
+use linked_data::{identity::Identity, media::comments::Comment, media::Media, types::IPNSAddress};
 
 use ybc::{Container, Section};
 
@@ -299,7 +299,7 @@ async fn web_crawl(
     callback: Callback<Cid>,
     regis: AbortRegistration,
 ) {
-    let defluencer = Defluencer::new(ipfs);
+    let defluencer = Defluencer::from(ipfs);
 
     let stream = defluencer
         .streaming_web_crawl(follows.into_iter())
@@ -323,7 +323,7 @@ async fn stream_comments(
     content_cid: Cid,
     callback: Callback<(Cid, Comment)>,
 ) {
-    let defluencer = Defluencer::new(ipfs.clone());
+    let defluencer = Defluencer::from(ipfs.clone());
 
     let stream = defluencer
         .stream_content_comments(index.into(), content_cid)

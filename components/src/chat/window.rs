@@ -4,7 +4,7 @@ use cid::Cid;
 
 use gloo_console::error;
 
-use linked_data::live::LiveSettings;
+use linked_data::channel::live::LiveSettings;
 
 use utils::ipfs::IPFSContext;
 
