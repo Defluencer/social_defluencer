@@ -7,3 +7,4 @@
 - Copy both to root folder.
 - Install [Trunk](https://trunkrs.dev/)
 - In ```main``` folder run ```trunk build --release```
+- ```ipfs add --cid-version=1 --chunker=size-1048576 -r www```

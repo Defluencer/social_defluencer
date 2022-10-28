@@ -164,7 +164,7 @@ impl Component for IPFSSettings {
                     </div>
                     <p class="help"> { "External nodes can be configured for better performace but Brave browser nodes are more conveniant." } </p>
                 </div> */
-                <Field label="API" help={"Refresh (F5) to apply changes."} >
+                <Field label="API Address" help={"Refresh (F5) to apply changes."} >
                     <Control expanded=true >
                         <Input name="ipfs_addrs" value={self.address.clone()} update={self.address_cb.clone()} />
                     </Control>
