@@ -7,6 +7,7 @@ pub mod identity;
 pub mod ipfs;
 pub mod subscriptions;
 pub mod web3;
+pub mod web_crypto;
 
 use chrono::{DateTime, Local, TimeZone, Utc};
 
@@ -27,7 +28,11 @@ pub fn seconds_to_timecode(seconds: f64) -> (u8, u8, u8) {
 
 /// Unix time in total number of seconds to date time string.
 pub fn timestamp_to_datetime(seconds: i64) -> String {
-    let d_t_unix = Utc.timestamp(seconds, 0);
+    let d_t_unix = match Utc.timestamp_opt(seconds, 0) {
+        chrono::LocalResult::None => return String::new(),
+        chrono::LocalResult::Single(time) => time,
+        chrono::LocalResult::Ambiguous(_, _) => return String::new(),
+    };
 
     let local_d_t = DateTime::<Local>::from(d_t_unix);
 

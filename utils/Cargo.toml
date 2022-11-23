@@ -4,17 +4,34 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-yew = { git = "https://github.com/SionoiS/yew", branch = "remove-tokio", default-features = false, features = ["csr"] }
-
+ipfs-api = { git = "https://github.com/Defluencer/rust-defluencer", branch = "develop" }
 defluencer = { git = "https://github.com/Defluencer/rust-defluencer", branch = "develop" }
 linked-data = { git = "https://github.com/Defluencer/rust-defluencer", branch = "develop" }
-ipfs-api = { git = "https://github.com/Defluencer/rust-defluencer", branch = "develop" }
+
+yew = { git = "https://github.com/SionoiS/yew", branch = "remove-tokio", default-features = false, features = ["csr"] }
 
 chrono = { version = "0.4", default-features = false, features = [] }
-cid = { version = "0.8", default-features = false, features = ["std"] }
+cid = { version = "0.9", default-features = false, features = ["std"] }
 futures-util = { version = "0.3", default-features = false, features = [] }
+js-sys = { version = "0.3", default-features = false, features = [] }
 gloo-console = { version = "0.2", default-features = false, features = [] }
 gloo-storage = { version ="0.2", default-features = false, features = [] }
 hex = { version = "0.4", default-features = false, features = [] }
+#p256 = { version = "0.11", default-features = false, features = [] }
+#rexie = { version = "0.4", default-features = false, features = [] }
+rexie = { git = "https://github.com/SionoiS/rexie", branch = "derive", default-features = false, features = [] }
 serde = { version = "1", default-features = false, features = ["std"] }
+wasm-bindgen = { version = "0.2", default-features = false, features = [] }
+wasm-bindgen-futures = { version = "0.4", default-features = false, features = [] }
 web3 = { version = "0.18", default-features = false, features = ["wasm", "eip-1193"] }
+
+web-sys = { version = "0.3", default-features = false, features = [
+    "Window",
+    "Crypto",
+    "SubtleCrypto",
+    "CryptoKeyPair",
+    "CryptoKey",
+]}
+
+
+
