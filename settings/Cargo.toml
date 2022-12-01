@@ -11,8 +11,8 @@ ipfs-api = { git = "https://github.com/Defluencer/rust-defluencer", branch = "de
 linked-data = { git = "https://github.com/Defluencer/rust-defluencer", branch = "develop" }
 defluencer = { git = "https://github.com/Defluencer/rust-defluencer", branch = "develop" }
 
-ybc = { git = "https://github.com/Sionois/ybc", branch = "deps_fix", features = ["router"] }
-yew = { git = "https://github.com/SionoiS/yew", branch = "remove-tokio", features = ["csr"] }
+ybc = { git = "https://github.com/Sionois/ybc", branch = "yew20" }
+yew = { version = "0.20", default-features = false, features = ["csr"] }
 
 cid = { version = "0.9", default-features = false, features = ["std"] }
 futures-util = { version = "0.3", default-features = false, features = [] }

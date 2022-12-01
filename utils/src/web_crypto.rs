@@ -1,5 +1,7 @@
 #![cfg(target_arch = "wasm32")]
 
+//use dag_jose::{AlgorithmType, JsonWebKey};
+
 use js_sys::{Array, Boolean, Object, Uint8Array, JSON};
 
 use wasm_bindgen::{JsCast, JsValue, UnwrapThrowExt};
@@ -10,17 +12,50 @@ use web_sys::{window, CryptoKey, CryptoKeyPair, SubtleCrypto};
 
 use rexie::{ObjectStore, Rexie, TransactionMode};
 
+const STORE_NAME: &str = "key_pairs";
+
 #[derive(Clone)]
 pub struct WebCryptoContext {
-    subtle: SubtleCrypto,
-    db: Rexie,
-    store_name: String,
-    db_key: JsValue,
+    pub subtle: SubtleCrypto,
+    pub db_key: String,
+    pub key_pair: CryptoKeyPair,
 }
 
 impl WebCryptoContext {
-    /// Create a new CryptoKey in the Browser and then save it to indexedDB.
-    pub async fn new(store_name: String) -> Self {
+    /// Load a CryptoKeyPair from the Browser saved in indexedDB under the key db_key.
+    pub async fn load(db_key: String) -> Self {
+        let window = window().unwrap_throw();
+        let crypto = window.crypto().unwrap_throw();
+        let subtle = crypto.subtle();
+
+        let rexie = Rexie::builder("defluencer")
+            .version(1)
+            .add_object_store(ObjectStore::new(STORE_NAME).key_path("name"))
+            .build()
+            .await
+            .unwrap_throw();
+
+        let transaction = rexie
+            .transaction(&[STORE_NAME], TransactionMode::ReadOnly)
+            .unwrap_throw();
+
+        let db_store = transaction.store(STORE_NAME).unwrap_throw();
+
+        let key_pair: CryptoKeyPair = db_store
+            .get((&JsValue::from(db_key.clone())).into())
+            .await
+            .unwrap_throw()
+            .unchecked_into();
+
+        Self {
+            subtle,
+            db_key,
+            key_pair,
+        }
+    }
+
+    /// Create a new CryptoKey in the Browser and then save it to indexedDB under the key db_key.
+    pub async fn new(db_key: String) -> Self {
         let window = window().unwrap_throw();
         let crypto = window.crypto().unwrap_throw();
         let subtle = crypto.subtle();
@@ -41,46 +76,29 @@ impl WebCryptoContext {
 
         let rexie = Rexie::builder("defluencer")
             .version(1)
-            .add_object_store(
-                ObjectStore::new(&store_name)
-                    .key_path("name")
-                    .auto_increment(true),
-            )
+            .add_object_store(ObjectStore::new(STORE_NAME).key_path("name"))
             .build()
             .await
             .unwrap_throw();
 
         let transaction = rexie
-            .transaction(&[&store_name], TransactionMode::ReadWrite)
+            .transaction(&[STORE_NAME], TransactionMode::ReadWrite)
             .unwrap_throw();
 
-        let db_store = transaction.store(&store_name).unwrap_throw();
+        let db_store = transaction.store(STORE_NAME).unwrap_throw();
 
-        let db_key = db_store.add(&key_pair, None).await.unwrap_throw();
+        db_store
+            .add(&key_pair, Some(&JsValue::from(db_key.clone())))
+            .await
+            .unwrap_throw();
 
         transaction.done().await.unwrap_throw();
 
         Self {
             subtle,
-            db: rexie,
-            store_name,
             db_key,
+            key_pair,
         }
-    }
-
-    async fn get_key_pair(&self) -> CryptoKeyPair {
-        let transaction = self
-            .db
-            .transaction(&[&self.store_name], TransactionMode::ReadOnly)
-            .unwrap_throw();
-
-        let db_store = transaction.store(&self.store_name).unwrap_throw();
-
-        db_store
-            .get((&self.db_key).into())
-            .await
-            .unwrap_throw()
-            .unchecked_into()
     }
 
     fn get_pubkey(&self, key_pair: &CryptoKeyPair) -> CryptoKey {
@@ -101,12 +119,11 @@ impl WebCryptoContext {
         Object::from(algorithm)
     }
 
-    /// Sign the message then return the signature
+    /// Hash then sign the message and return the signature.
     pub async fn sign(&self, mut msg: Vec<u8>) -> Vec<u8> {
         let algorithm = self.ecdsa_params();
 
-        let key_pair = self.get_key_pair().await;
-        let private_key = self.get_privkey(&key_pair);
+        let private_key = self.get_privkey(&self.key_pair);
 
         let promise = self
             .subtle
@@ -116,9 +133,6 @@ impl WebCryptoContext {
         let result = JsFuture::from(promise).await.unwrap_throw();
         let buffer: Uint8Array = result.unchecked_into();
 
-        //use p256::ecdsa::signature::Signature;
-        //Signature::from_bytes(&vec)
-
         buffer.to_vec()
     }
 
@@ -126,8 +140,7 @@ impl WebCryptoContext {
     pub async fn verify(&self, mut msg: Vec<u8>, mut sig: Vec<u8>) -> bool {
         let algorithm = self.ecdsa_params();
 
-        let key_pair = self.get_key_pair().await;
-        let public_key = self.get_pubkey(&key_pair);
+        let public_key = self.get_pubkey(&self.key_pair);
 
         let promise = self
             .subtle
@@ -142,26 +155,20 @@ impl WebCryptoContext {
 
         Boolean::from(result).value_of()
     }
-}
 
-/* #[async_trait]
-impl AsyncBlockSigner<Signature> for WebSigner {
-    fn algorithm(&self) -> AlgorithmType {
+    /*  fn algorithm(&self) -> AlgorithmType {
         AlgorithmType::ES256
-    }
+    } */
 
-    async fn web_key(&self) -> JsonWebKey {
-        let window = window().unwrap_throw();
-        let crypto = window.crypto().unwrap_throw();
-        let subtle = crypto.subtle();
+    /* async fn web_key(&self) -> JsonWebKey {
+        let pubkey = self.get_pubkey(&self.key_pair);
 
-        let pubkey = self.get_pubkey(self.get_key_pair());
-
-        let promise = subtle.export_key("jwk", &pubkey).unwrap_throw();
+        let promise = self.subtle.export_key("jwk", &pubkey).unwrap_throw();
         let result = JsFuture::from(promise).await.unwrap_throw();
 
         let js_string = JSON::stringify(&result).unwrap_throw();
+        let string: String = (&js_string).into();
 
-        serde_json::from_str(&js_string.into()).unwrap()
-    }
-} */
+        serde_json::from_str(&string).unwrap()
+    } */
+}
