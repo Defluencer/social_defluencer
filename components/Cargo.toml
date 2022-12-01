@@ -10,11 +10,11 @@ defluencer = { git = "https://github.com/Defluencer/rust-defluencer", branch = "
 linked-data = { git = "https://github.com/Defluencer/rust-defluencer", branch = "develop" }
 ipfs-api = { git = "https://github.com/Defluencer/rust-defluencer", branch = "develop" }
 
-ybc = { git = "https://github.com/Sionois/ybc", branch = "deps_fix" }
-yew = { git = "https://github.com/SionoiS/yew", branch = "remove-tokio", features = ["csr"] }
-yew-router = { git = "https://github.com/SionoiS/yew", branch = "remove-tokio", default-features = false }
+ybc = { git = "https://github.com/Sionois/ybc", branch = "yew20" }
+yew = { version = "0.20", default-features = false, features = ["csr"] }
+yew-router = { version = "0.17", default-features = false, features = []  }
 
-cid = { version = "0.8", default-features = false, features = ["std"] }
+cid = { version = "0.9", default-features = false, features = ["std"] }
 either = { version = "1", default-features = false, features = [] }
 futures-util = { version = "0.3", default-features = false, features = [] }
 gloo-console = { version = "0.2", default-features = false, features = [] }

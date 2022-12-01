@@ -6,7 +6,7 @@ use cid::Cid;
 
 use defluencer::{
     channel::{local::LocalUpdater, Channel},
-    crypto::signers::EthereumSigner,
+    crypto::signers::MetamaskSigner,
     user::User,
 };
 
@@ -570,7 +570,7 @@ impl ManageContent {
 
 async fn create_micro_post(
     ipfs: IpfsService,
-    user: User<EthereumSigner>,
+    user: User<MetamaskSigner>,
     channel: Channel<LocalUpdater>,
     text: String,
     tags: HashSet<String>,
@@ -594,7 +594,7 @@ async fn create_micro_post(
 
 async fn create_video_post(
     ipfs: IpfsService,
-    user: User<EthereumSigner>,
+    user: User<MetamaskSigner>,
     channel: Channel<LocalUpdater>,
     title: String,
     cid: Cid,
@@ -620,7 +620,7 @@ async fn create_video_post(
 
 async fn create_article(
     ipfs: IpfsService,
-    user: User<EthereumSigner>,
+    user: User<MetamaskSigner>,
     channel: Channel<LocalUpdater>,
     title: String,
     image: Option<SysFile>,
