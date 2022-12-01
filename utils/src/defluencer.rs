@@ -4,7 +4,7 @@ use cid::Cid;
 
 use defluencer::{
     channel::{local::LocalUpdater, Channel},
-    crypto::signers::EthereumSigner,
+    crypto::signers::MetamaskSigner,
     user::User,
 };
 
@@ -14,11 +14,11 @@ use linked_data::types::IPNSAddress;
 
 #[derive(Clone, PartialEq)]
 pub struct UserContext {
-    pub user: User<EthereumSigner>,
+    pub user: User<MetamaskSigner>,
 }
 
 impl UserContext {
-    pub fn new(ipfs: IpfsService, signer: EthereumSigner, identity: Cid) -> Self {
+    pub fn new(ipfs: IpfsService, signer: MetamaskSigner, identity: Cid) -> Self {
         let user = User::new(ipfs, signer, identity);
 
         Self { user }

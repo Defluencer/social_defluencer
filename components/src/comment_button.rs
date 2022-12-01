@@ -4,7 +4,7 @@ use cid::Cid;
 
 use defluencer::{
     channel::{local::LocalUpdater, Channel},
-    crypto::signers::EthereumSigner,
+    crypto::signers::MetamaskSigner,
     user::User,
 };
 
@@ -188,7 +188,7 @@ impl CommentButton {
 }
 
 async fn publish_comment(
-    user: User<EthereumSigner>,
+    user: User<MetamaskSigner>,
     origin: Cid,
     text: String,
     parent_cb: Option<Callback<(Cid, Comment)>>,

@@ -6,5 +6,5 @@ edition = "2021"
 [dependencies]
 components = { path = "../components" }
 
-ybc = { git = "https://github.com/Sionois/ybc", branch = "deps_fix" }
-yew = { git = "https://github.com/SionoiS/yew", branch = "remove-tokio", features = ["csr"] }
+ybc = { git = "https://github.com/Sionois/ybc", branch = "yew20" }
+yew = { version = "0.20", default-features = false, features = ["csr"] }

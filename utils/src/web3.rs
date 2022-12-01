@@ -1,6 +1,6 @@
 #![cfg(target_arch = "wasm32")]
 
-use defluencer::crypto::signers::EthereumSigner;
+use defluencer::crypto::signers::MetamaskSigner;
 
 use web3::{
     api::Namespace,
@@ -23,7 +23,7 @@ pub struct Web3Context {
     pub ens: Ens<Eip1193>,
     pub addr: Address,
     pub name: Option<String>,
-    pub signer: EthereumSigner,
+    pub signer: MetamaskSigner,
 }
 
 impl PartialEq for Web3Context {
@@ -60,7 +60,7 @@ impl Web3Context {
 
         let name = ens.canonical_name(addr.into()).await.ok();
 
-        let signer = EthereumSigner::new(addr, client.clone());
+        let signer = MetamaskSigner::new(addr, client.clone());
 
         Some(Self {
             client,

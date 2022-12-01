@@ -190,7 +190,7 @@ impl Component for ChannelPage {
         }
     }
 
-    fn changed(&mut self, ctx: &Context<Self>) -> bool {
+    fn changed(&mut self, ctx: &Context<Self>, _old_props: &Self::Properties) -> bool {
         #[cfg(debug_assertions)]
         info!("Channel Page Changed");
 
