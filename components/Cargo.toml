@@ -21,7 +21,7 @@ gloo-console = { version = "0.2", default-features = false, features = [] }
 pulldown-cmark = { version = "0.9", default-features = false, features = [] }
 serde = { version = "1", default-features = false, features = [] }
 serde_json = { version = "1", default-features = false, features = [] }
-wasm-bindgen = { version = "0.2.83", default-features = false, features = [] }
+wasm-bindgen = { version = "0.2.84", default-features = false, features = [] }
 web-sys = { version = "0.3.59", default-features = false, features = [
     "File",
     "FilePropertyBag",

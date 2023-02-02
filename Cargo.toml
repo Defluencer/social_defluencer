@@ -12,6 +12,10 @@ members = [
     "components"
 ]
 
+exclude = [
+    "src-tauri"
+]
+
 resolver = "2"
 
 [profile.release]
